@@ -101,6 +101,11 @@
   white-space: nowrap;
 }
 
+/* Phase 3 SI-141: amounts align at the end, as in the award baseline (the grid's own start alignment won before). */
+.ev-grid td.ev-num {
+  text-align: end;
+}
+
 .ev-text {
   overflow-wrap: anywhere;
 }

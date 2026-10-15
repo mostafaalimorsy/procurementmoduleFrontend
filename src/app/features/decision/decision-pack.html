@@ -46,34 +46,6 @@
             {{ item.header.generatedAtUtc | businessDate: 'instant' }}
           </dd>
         </div>
-        <div>
-          <dt i18n="@@pack.decisionVersion">Decision version</dt>
-          <dd>
-            <bdi dir="ltr" class="pack-hash">{{ item.header.decisionVersion ?? '—' }}</bdi>
-          </dd>
-        </div>
-        <div>
-          <dt i18n="@@pack.openingFingerprint">Opening evidence (SHA-256)</dt>
-          <dd>
-            <bdi dir="ltr" class="pack-hash">{{ item.header.openingFingerprint }}</bdi>
-          </dd>
-        </div>
-        @if (item.header.recommendationFingerprint) {
-          <div>
-            <dt i18n="@@pack.recommendationFingerprint">Recommendation evidence (SHA-256)</dt>
-            <dd>
-              <bdi dir="ltr" class="pack-hash">{{ item.header.recommendationFingerprint }}</bdi>
-            </dd>
-          </div>
-        }
-        @if (item.header.baselineFingerprint) {
-          <div>
-            <dt i18n="@@pack.baselineFingerprint">Award baseline (SHA-256)</dt>
-            <dd>
-              <bdi dir="ltr" class="pack-hash">{{ item.header.baselineFingerprint }}</bdi>
-            </dd>
-          </div>
-        }
       </dl>
     </header>
     <!-- Red-team G073 (CF-057 AC5): the file of record says the shortlist went through the low-value fast path. -->
@@ -81,7 +53,7 @@
 
     <section aria-labelledby="pack-bids">
       <h2 id="pack-bids" i18n="@@pack.bidsOpened">Bids opened</h2>
-      <table class="pack-table">
+      <table class="pack-table" tabindex="0" aria-labelledby="pack-bids">
         <thead>
           <tr>
             <th scope="col" i18n="@@pack.colPosition">#</th>
@@ -159,7 +131,7 @@
           [deviationReason]="rec.criteriaDeviationReason ?? null"
           [evaluationDeviated]="rec.evaluationCriteriaDeviated ?? false"
         />
-        <table class="pack-table">
+        <table class="pack-table" tabindex="0" aria-labelledby="pack-recommendation">
           <thead>
             <tr>
               <th scope="col" i18n="@@pack.colRank">Rank</th>
@@ -257,8 +229,8 @@
             </li>
           }
         </ul>
-        <h3 i18n="@@pack.approvalTrail">Approval trail</h3>
-        <table class="pack-table">
+        <h3 id="pack-approval-trail" i18n="@@pack.approvalTrail">Approval trail</h3>
+        <table class="pack-table" tabindex="0" aria-labelledby="pack-approval-trail">
           <thead>
             <tr>
               <th scope="col" i18n="@@pack.colStep">Step</th>
@@ -275,7 +247,7 @@
                 <td>
                   <bdi dir="ltr">{{ action.step ?? '—' }}</bdi>
                 </td>
-                <td>{{ action.actorRoles }}</td>
+                <td>{{ roleNames(action.actorRoles) }}</td>
                 <td>{{ actionLabel(action.kind) }}</td>
                 <td>
                   <bdi>{{ action.actorName }}</bdi>
@@ -336,6 +308,45 @@
         </dl>
       </section>
     }
+
+    <!-- Phase 3 SI-121: the evidence fingerprints are a verification appendix after the decision, not the first thing read. -->
+    <section aria-labelledby="pack-verification" class="pack-verification">
+      <h2 id="pack-verification" i18n="@@pack.verification">Verification</h2>
+      <p class="prj-hint" i18n="@@pack.verificationIntro">
+        Recompute these values from the evidence to confirm this pack matches the records it was
+        built from.
+      </p>
+      <dl class="pack-facts">
+        <div>
+          <dt i18n="@@pack.decisionVersion">Decision version</dt>
+          <dd>
+            <bdi dir="ltr" class="pack-hash">{{ item.header.decisionVersion ?? '—' }}</bdi>
+          </dd>
+        </div>
+        <div>
+          <dt i18n="@@pack.openingFingerprint">Opening evidence (SHA-256)</dt>
+          <dd>
+            <bdi dir="ltr" class="pack-hash">{{ item.header.openingFingerprint }}</bdi>
+          </dd>
+        </div>
+        @if (item.header.recommendationFingerprint) {
+          <div>
+            <dt i18n="@@pack.recommendationFingerprint">Recommendation evidence (SHA-256)</dt>
+            <dd>
+              <bdi dir="ltr" class="pack-hash">{{ item.header.recommendationFingerprint }}</bdi>
+            </dd>
+          </div>
+        }
+        @if (item.header.baselineFingerprint) {
+          <div>
+            <dt i18n="@@pack.baselineFingerprint">Award baseline (SHA-256)</dt>
+            <dd>
+              <bdi dir="ltr" class="pack-hash">{{ item.header.baselineFingerprint }}</bdi>
+            </dd>
+          </div>
+        }
+      </dl>
+    </section>
   } @else {
     <p class="prj-hint" i18n="@@common.loading">Loading…</p>
   }

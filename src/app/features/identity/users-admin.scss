@@ -500,3 +500,38 @@ select:disabled {
   list-style: none;
   overflow-wrap: anywhere;
 }
+
+// Phase 3 SI-084: a compact directory — search and status filter, one row per person, editing under Manage.
+.users-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: end;
+  margin-block: 0 1rem;
+}
+
+.users-field {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.users-field input,
+.users-field select {
+  min-block-size: 2.25rem;
+  padding: 0.35rem 0.6rem;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  font: inherit;
+}
+
+.row-manage > summary {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 1.5rem;
+  cursor: pointer;
+}
+
+.row-manage[open] > summary {
+  margin-block-end: 0.75rem;
+  font-weight: 600;
+}

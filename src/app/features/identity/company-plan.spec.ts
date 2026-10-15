@@ -155,7 +155,7 @@ describe('UsersAdmin capacity presentation', () => {
     expect(fixture.componentInstance.plan()).toBeNull();
     // No plan means no client-side capacity claim: the server remains the only authority.
     expect(fixture.componentInstance.atSeatCapacity()).toBe(false);
-    expect(fixture.nativeElement.textContent).toContain('People & access');
+    expect(fixture.nativeElement.textContent).toContain('Company users');
     flushSecurity(http);
     http.verify();
   });

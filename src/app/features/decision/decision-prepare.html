@@ -7,7 +7,13 @@
     <p class="prj-hint" i18n="@@decision.needRecommendation">
       Compute a recommendation first. The decision is prepared on the latest recommendation.
     </p>
-  } @else if (status() === 'PendingApproval' || status() === 'Approved' || status() === 'Awarded') {
+  } @else if (status() === 'Awarded') {
+    <!-- Phase 3 SI-059: once awarded the decision is closed — no "changes only as a new version" guidance. -->
+    <p class="prj-note" role="note" i18n="@@decision.awardedNote">
+      The decision was approved and the award issued. It is part of the tender's record and no
+      longer changes; see the Award tab.
+    </p>
+  } @else if (status() === 'PendingApproval' || status() === 'Approved') {
     <p class="prj-note" role="note" i18n="@@decision.submittedNote">
       The decision was submitted. It changes only as a new version if an approver returns it or its
       submitter withdraws it. See the approval section.
@@ -362,8 +368,8 @@
         @if (view.routePreview; as route) {
           <ng-container *ngTemplateOutlet="routeView; context: { route: route }" />
         } @else {
-          <p class="prj-hint" i18n="@@decision.routePending">
-            The route is chosen from the approval matrix once an award value is saved.
+          <p class="prj-hint" i18n="@@decision.routePendingRules">
+            The route is chosen from the approval rules once an award value is saved.
           </p>
         }
       </section>
@@ -412,8 +418,8 @@
       <a
         routerLink="/approval-matrix/read"
         [queryParams]="{ rule: route.isDefault ? 'default' : route.ruleName }"
-        i18n="@@decision.routeSeeRule"
-        >See this rule in the approval routes</a
+        i18n="@@decision.routeSeeRuleRules"
+        >See this rule in the approval rules</a
       >
     }
   </p>

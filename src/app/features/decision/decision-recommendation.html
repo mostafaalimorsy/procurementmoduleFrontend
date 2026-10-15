@@ -1,7 +1,17 @@
 @let view = workspace();
 <section class="prj-section" aria-labelledby="compute-title">
   <h2 id="compute-title" i18n="@@recommendation.computeTitle">Compute a recommendation</h2>
-  @if (view.access.compute) {
+  @if (view.readiness.state === 'Awarded') {
+    <!-- Phase 3 SI-059: an awarded tender's recommendation is frozen evidence — one line of fact, no compute controls. -->
+    <p
+      class="prj-note"
+      role="note"
+      data-testid="recommendation-frozen"
+      i18n="@@recommendation.frozen"
+    >
+      The tender was awarded. The recommendation below is the frozen evidence behind the decision.
+    </p>
+  } @else if (view.access.compute) {
     @if (view.readiness.state !== 'Ready') {
       <p class="prj-note tnd-attention-box" role="note" i18n="@@recommendation.notReady">
         A recommendation can be computed once the tender is ready. Now:
@@ -194,6 +204,15 @@
       <p class="prj-hint" data-testid="history-rule">
         {{ historyRuleLabel(rec.historyRule, rec.neutralHistoryScore) }}
       </p>
+      <!-- Phase 3 SI-043: where the neutral value sits against the history the weighed firms brought (display only). -->
+      @if (neutralRange(rec); as range) {
+        <p class="prj-hint" data-testid="neutral-range" i18n="@@recommendation.neutralRange">
+          For comparison: the firms weighed on their history scored
+          <bdi dir="ltr">{{ range.min }}–{{ range.max }}</bdi> ({{ range.count }}); the neutral
+          value is <bdi dir="ltr">{{ range.neutral }}</bdi
+          >, below {{ range.above }} of them.
+        </p>
+      }
     }
     @switch (rec.history) {
       @case ('Unavailable') {
@@ -255,10 +274,13 @@
                 >Not market-tested</span
               >
             }
-            <span>
-              <bdi dir="ltr" class="tnd-code">{{ candidate.subcontractorCode }}</bdi
-              >{{ ' ' }}<bdi>{{ candidate.subcontractorName }}</bdi>
-            </span>
+            <!-- Phase 3 SI-066: the firm links to its profile when the recommendation carries its id and the reader can open it. -->
+            <a
+              [routerLink]="links.subcontractor(candidate.subcontractorId)"
+              data-testid="candidate-firm-link"
+              ><bdi dir="ltr" class="tnd-code">{{ candidate.subcontractorCode }}</bdi
+              >{{ ' ' }}<bdi>{{ candidate.subcontractorName }}</bdi></a
+            >
           </div>
           <dl class="dc-facts">
             <div>
@@ -349,8 +371,11 @@
       <ul class="dc-list" role="list">
         @for (candidate of ineligible(); track candidate.openingBidId) {
           <li>
-            <bdi dir="ltr" class="tnd-code">{{ candidate.subcontractorCode }}</bdi
-            >{{ ' ' }}<bdi>{{ candidate.subcontractorName }}</bdi> —
+            <a [routerLink]="links.subcontractor(candidate.subcontractorId)"
+              ><bdi dir="ltr" class="tnd-code">{{ candidate.subcontractorCode }}</bdi
+              >{{ ' ' }}<bdi>{{ candidate.subcontractorName }}</bdi></a
+            >
+            —
             {{ ineligibleLabel(candidate.ineligibleReason) }}
           </li>
         }

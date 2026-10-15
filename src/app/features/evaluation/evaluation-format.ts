@@ -62,3 +62,13 @@ export function compareAmounts(a: string, b: string): number {
   const difference = scaled(a, scale) - scaled(b, scale);
   return difference === 0n ? 0 : difference < 0n ? -1 : 1;
 }
+
+/**
+ * Phase 3 SI-141: one score format everywhere — one decimal ("83.7", "92.0"), so a stored 83.668 never sits beside 92 on one
+ * page. Display only: the stored and compared values are unchanged. Rounds half away from zero on the value as received.
+ */
+export function score(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—';
+  const rounded = (Math.sign(value) * Math.round(Math.abs(value) * 10 + 1e-9)) / 10;
+  return rounded.toFixed(1);
+}

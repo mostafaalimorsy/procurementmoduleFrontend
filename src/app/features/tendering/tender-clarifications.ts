@@ -51,6 +51,15 @@ export class TenderClarifications {
   private readonly document = inject(DOCUMENT);
 
   readonly tender = input.required<TenderDetail>();
+  /** Phase 3 SI-059: an awarded, cancelled or closed tender takes no new questions, so there is nothing to check for. */
+  readonly live = computed(() => {
+    const tender = this.tender();
+    return (
+      !tender.awardedAtUtc &&
+      tender.status !== 'Cancelled' &&
+      !['Awarded', 'Cancelled', 'ClosedForRetender'].includes(tender.stage ?? '')
+    );
+  });
   readonly announce = output<string>();
 
   readonly statusLabel = clarificationStatusLabel;

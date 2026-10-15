@@ -18,10 +18,20 @@ import {
   PROJECT_STATUS_ACTION,
   lifecycleActionClass,
 } from './projects.api';
+import { SavedNotice } from '../../core/a11y/saved-notice';
+import { tenderLifecycleLabel } from '../../core/localization/labels';
+import { RecordLinks } from '../../shared/navigation/record-links';
 
 @Component({
   selector: 'app-project-detail',
-  imports: [FormsModule, RouterLink, BusinessDatePipe, BusinessCurrencyPipe, ConfirmDialog],
+  imports: [
+    SavedNotice,
+    FormsModule,
+    RouterLink,
+    BusinessDatePipe,
+    BusinessCurrencyPipe,
+    ConfirmDialog,
+  ],
   templateUrl: './project-detail.html',
 })
 export class ProjectDetailPage implements OnInit {
@@ -32,6 +42,9 @@ export class ProjectDetailPage implements OnInit {
   readonly permissions = PROJECT_PERMISSIONS;
   readonly statusLabel = projectStatusLabel;
   readonly statusIntent = PROJECT_STATUS_INTENT;
+  /** Phase 3 SI-058: each package's latest tender stage, linked for readers who can open the tender. */
+  readonly stageLabel = tenderLifecycleLabel;
+  readonly links = inject(RecordLinks);
   /** CF-019: the dialog's other choice says what it keeps. */
   readonly keepLabel = $localize`:@@project.keep:Keep project as it is`;
 

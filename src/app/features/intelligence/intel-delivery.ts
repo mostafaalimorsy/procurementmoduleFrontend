@@ -11,11 +11,19 @@ import {
 } from '../performance/performance-labels';
 import {
   DeliveryIntelligence,
+  DeliveryOutcome,
   EvidenceSummary,
   IntelligenceAccess,
   SampleSummary,
 } from './intelligence.api';
-import { central, centralAt, rate, roundDecimal, samplePrecision } from './intelligence-labels';
+import {
+  central,
+  centralAt,
+  pair,
+  rate,
+  roundDecimal,
+  samplePrecision,
+} from './intelligence-labels';
 import { VarianceCause } from '../performance/variance-cause';
 
 /**
@@ -65,6 +73,12 @@ export class IntelDeliveryView {
   }
 
   readonly centralAt = centralAt;
+  readonly pair = pair;
+
+  /** Phase 3 SI-114 (ADR-124): a project that did not complete (terminated, ended early) is not compared on schedule or cost. */
+  endedEarly(item: DeliveryOutcome): boolean {
+    return !!item.outcomeType && item.outcomeType !== 'Completed';
+  }
 
   distribution(counts: readonly number[]): string {
     return counts.map((count, index) => `${index + 1}: ${count}`).join(' · ');

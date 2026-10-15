@@ -85,8 +85,6 @@ import { CompanyApi, CompanyProfile, Currency, LOGO_ACCEPT, LOGO_MAX_BYTES } fro
           </div>
         </section>
 
-        <app-governance-settings />
-
         <section class="prj-card" aria-labelledby="company-logo-title">
           <h2 id="company-logo-title" i18n="@@companySettings.logoTitle">Company logo</h2>
           <p class="prj-hint" i18n="@@companySettings.logoHelp">
@@ -156,6 +154,9 @@ import { CompanyApi, CompanyProfile, Currency, LOGO_ACCEPT, LOGO_MAX_BYTES } fro
             </div>
           }
         </section>
+        <!-- Phase 3 SI-021: the company's own profile (currency, logo) first, then the procurement rules, then its data. -->
+        <app-governance-settings />
+
         <!-- CF-071 (ADR-134): the company's complete, verifiable export (also during a read-only grace).
              Phase 2 SI-001 / SI-092: sealed bids and unsafe files stay in the product; the download is confirmed with an authenticator code. -->
         @if (canManageData()) {

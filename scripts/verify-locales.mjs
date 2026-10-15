@@ -28,6 +28,37 @@ for (const [name, catalogue] of [
   for (const [id, text] of Object.entries(catalogue))
     check(!jargon.test(text), `${name}: build-phase jargon in ${id}`);
 
+// Phase 3 SI-145: one name per concept (docs/project/LIFECYCLE_GLOSSARY.md, "Nouns and page names"). Pages carry the menu's name
+// ("Approval rules", "Company users"); the tenant's commercial terms are its "plan" ("package" is a work package, and the platform
+// operator's own Packages console); in Arabic an award decision's approval is اعتماد (never موافقة) and leveling is التسوية.
+const retiredEnglish = /\bapproval[- ]matrix\b|\bapproval routes\b|People & access/i;
+const operatorPlanIds = new Set(['plan.grandfathered']);
+const decisionApproval =
+  /^(approval|approvalAction|approvalBlocker|approvalStep|matrix|matrixRead|decision|decisionStatus|submissionOutcome|timeline|dashboard)\.|^problem\.(decision|approval)/;
+for (const [id, text] of Object.entries(source)) {
+  check(!retiredEnglish.test(text), `en: retired page name in ${id} (SI-145 term base)`);
+  if (/^plan\./.test(id) && !operatorPlanIds.has(id))
+    check(
+      !/\bpackage\b/i.test(text),
+      `en: "package" for the company plan in ${id} (SI-145 term base)`,
+    );
+}
+for (const [id, text] of Object.entries(arabic)) {
+  check(
+    !/المعادلة/.test(text),
+    `ar: leveling is التسوية, not المعادلة, in ${id} (SI-145 term base)`,
+  );
+  check(
+    !/مصفوفة (الاعتماد|الموافقات)|مسارات الاعتماد/.test(text),
+    `ar: the rules page is قواعد الاعتماد in ${id} (SI-145 term base)`,
+  );
+  if (decisionApproval.test(id))
+    check(
+      !/موافق|وافق/.test(text),
+      `ar: decision approval is اعتماد, not موافقة, in ${id} (SI-145 term base)`,
+    );
+}
+
 for (const [locale, direction] of [
   ['en', 'ltr'],
   ['ar', 'rtl'],

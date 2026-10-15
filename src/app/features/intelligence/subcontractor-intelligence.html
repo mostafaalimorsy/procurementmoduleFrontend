@@ -292,6 +292,15 @@
               @if (item.awardedToFirm) {
                 <span class="prj-chip" i18n="@@intel.awardedChip">Awarded</span>
               }
+              <!-- Phase 3 SI-048: a tender closed without an award in force awaits no decision; it says so. -->
+              @if (item.tenderClosedWithoutAward) {
+                <span
+                  class="prj-chip dc-state dc-state--muted"
+                  data-testid="closed-without-award"
+                  i18n="@@intel.closedWithoutAwardChip"
+                  >Tender closed without an award</span
+                >
+              }
               <span class="prj-hint"
                 >{{ categoryLabel(item.category) }} ·
                 <bdi>{{ item.issuedAtUtc | businessDate: 'instant' }}</bdi></span
@@ -310,6 +319,16 @@
           <bdi dir="ltr">{{ view.awards.awaitingDecision }}</bdi> · cancelled after opening:
           <bdi dir="ltr">{{ view.awards.openedThenCancelled }}</bdi></span
         >
+        <!-- Phase 3 SI-048: tenders closed without an award in force are counted apart from those awaiting a decision. -->
+        @if (
+          view.awards.closedWithoutAward !== undefined && view.awards.closedWithoutAward !== null
+        ) {
+          ·
+          <span data-testid="closed-without-award-count" i18n="@@intel.closedWithoutAwardCount"
+            >closed without an award:
+            <bdi dir="ltr">{{ view.awards.closedWithoutAward }}</bdi></span
+          >
+        }
         @if (view.awards.reserves !== null) {
           ·
           <span i18n="@@intel.reserveCounts"

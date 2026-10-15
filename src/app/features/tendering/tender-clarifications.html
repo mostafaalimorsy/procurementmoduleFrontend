@@ -1,16 +1,18 @@
 <section class="prj-section" aria-labelledby="clar-title">
   <div class="prj-section-head">
     <h2 id="clar-title" i18n="@@clar.title">Clarifications</h2>
-    <button
-      class="prj-btn prj-btn--ghost"
-      type="button"
-      [disabled]="refreshing()"
-      [attr.aria-busy]="refreshing()"
-      (click)="load(true)"
-      i18n="@@clar.refresh"
-    >
-      Check for new questions
-    </button>
+    @if (live()) {
+      <button
+        class="prj-btn prj-btn--ghost"
+        type="button"
+        [disabled]="refreshing()"
+        [attr.aria-busy]="refreshing()"
+        (click)="load(true)"
+        i18n="@@clar.refresh"
+      >
+        Check for new questions
+      </button>
+    }
   </div>
   <p class="prj-hint" role="status" aria-live="polite">{{ refreshStatus() }}</p>
   @if (error()) {

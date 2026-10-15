@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { tenantRoleLabel } from '../../core/auth/tenant-role-labels';
 import { MyWorkPanel } from './my-work';
@@ -6,12 +6,15 @@ import { BusinessDatePipe } from '../../core/localization/business-format';
 import { tenderStatusLabel } from '../../core/localization/labels';
 import { categoryLabel, scheduleOutcomeLabel } from '../performance/performance-labels';
 import { EvidenceStrengthBadge } from './evidence-strength';
+import { awardStateLabel } from '../decision/decision-labels';
+import { dispositionLabel } from './intelligence-labels';
 import {
   Dashboard,
   DashboardItem,
   IntelligenceApi,
   intelligenceProblemMessage,
 } from './intelligence.api';
+import { SessionService } from '../../core/auth/session.service';
 
 /**
  * The Home dashboard (Part 12, ADR-079): what needs attention, what procurement is active, which closeouts are missing and where the
@@ -26,6 +29,20 @@ import {
 })
 export class DashboardView implements OnInit {
   private readonly api = inject(IntelligenceApi);
+  private readonly session = inject(SessionService);
+  /**
+   * Phase 3 SI-064: whether this reader acts on procurement work (prepares, publishes, opens, evaluates by policy or decides). The
+   * administration-only Company Admin (ADR-084), an evaluator or a project manager reads the company-wide list as information.
+   */
+  readonly actsInProcurement = computed(() =>
+    [
+      'Tenders.Edit',
+      'Tenders.Publish',
+      'Evaluation.OpenBids',
+      'Evaluation.ManagePolicy',
+      'Decision.Prepare',
+    ].some((permission) => this.session.hasPermission(permission)),
+  );
   readonly dashboard = signal<Dashboard | null>(null);
   readonly loading = signal(true);
   readonly error = signal('');
@@ -131,5 +148,21 @@ export class DashboardView implements OnInit {
 
   scheduleLabel(status: string | null): string {
     return scheduleOutcomeLabel(status);
+  }
+
+  /** Phase 3 SI-129 (ADR-110): a recent award reads where it stands now — a declined or withdrawn award is never just "Award issued". */
+  awardChip(item: DashboardItem): string {
+    return item.status === 'Declined' || item.status === 'Withdrawn'
+      ? dispositionLabel('Award', item.status)
+      : $localize`:@@dashboard.awardChip:Award issued`;
+  }
+
+  /** Phase 3 SI-129: the answer or withdrawal still under way beside an issued award (none for a legacy award without one). */
+  awardStateNote(item: DashboardItem): string | null {
+    return item.status === 'AwaitingResponse' ||
+      item.status === 'Accepted' ||
+      item.status === 'WithdrawalPending'
+      ? awardStateLabel(item.status)
+      : null;
   }
 }

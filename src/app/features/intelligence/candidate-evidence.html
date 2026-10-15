@@ -55,19 +55,21 @@
                     <bdi>{{ item.latestClosedAtUtc | businessDate: 'instant' }}</bdi></span
                   >
                 }
+                <!-- CF-029 (ADR-128): one category count, with how many of those projects were of comparable value or the same project.
+                     Phase 3 SI-026: inside the same definition — a second <dd> under one <dt> shifted every later pair of this grid. -->
+                @if (item.completedProjects > 0) {
+                  <span
+                    class="prj-hint tnd-block"
+                    data-testid="candidate-similar"
+                    i18n="@@intel.similarBreakdown"
+                  >
+                    of which comparable value
+                    <bdi dir="ltr">{{ item.similarComparableValueProjects ?? 0 }}</bdi> · same
+                    project
+                    <bdi dir="ltr">{{ item.similarSameProject ?? 0 }}</bdi>
+                  </span>
+                }
               </dd>
-              <!-- CF-029 (ADR-128): one category count, with how many of those projects were of comparable value or the same project. -->
-              @if (item.completedProjects > 0) {
-                <dd
-                  class="prj-hint"
-                  data-testid="candidate-similar"
-                  i18n="@@intel.similarBreakdown"
-                >
-                  of which comparable value
-                  <bdi dir="ltr">{{ item.similarComparableValueProjects ?? 0 }}</bdi> · same project
-                  <bdi dir="ltr">{{ item.similarSameProject ?? 0 }}</bdi>
-                </dd>
-              }
               @if (item.retrospectiveProjects) {
                 <dt i18n="@@intel.retrospectiveShort">Past outcomes</dt>
                 <dd data-testid="candidate-retrospective">

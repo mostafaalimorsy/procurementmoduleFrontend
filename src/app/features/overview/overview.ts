@@ -5,6 +5,10 @@ import { EntitlementsService } from '../../core/auth/entitlements.service';
 import { SessionService } from '../../core/auth/session.service';
 import { TENANT_PERMISSIONS } from '../identity/tenant-identity.api';
 import { PROJECTS_FEATURE, PROJECT_PERMISSIONS } from '../projects/projects.api';
+import { TENDERING_FEATURES } from '../tendering/tendering.api';
+import { SOURCING_FEATURES } from '../sourcing/sourcing.api';
+import { EVALUATION_FEATURES } from '../evaluation/evaluation.api';
+import { PERFORMANCE_FEATURES } from '../performance/performance.api';
 import { DashboardView } from '../intelligence/dashboard';
 import { HealthService } from './health.service';
 import { StatusIndicator } from '../../shared/ui/status-indicator';
@@ -75,46 +79,68 @@ export class Overview implements OnInit {
   protected readonly showDiagnostics = computed(
     () => this.session.identity()?.roles.includes('CompanyAdmin') ?? false,
   );
-  /** CF-016: one secondary link by role, beside My work. */
+  /** Phase 3 SI-064: one line on what this person does here, instead of the same intro for every role. */
+  protected readonly roleIntro = computed<string | null>(() => {
+    const roles = this.session.identity()?.roles ?? [];
+    if (roles.includes('CompanyAdmin'))
+      return $localize`:@@overview.intro.companyAdmin:You set up the company: its people, plan, rules and data.`;
+    if (roles.includes('ProcurementManager'))
+      return $localize`:@@overview.intro.procurementManager:You lead procurement: sourcing, tenders, evaluation and decisions.`;
+    if (roles.includes('ApproverDirector'))
+      return $localize`:@@overview.intro.director:You approve award decisions and see the company's procurement at a glance.`;
+    if (roles.includes('ProcurementOfficer'))
+      return $localize`:@@overview.intro.officer:You prepare shortlists and tenders and keep the directory current.`;
+    if (roles.includes('CommercialQs'))
+      return $localize`:@@overview.intro.qs:You level the commercial bids and record closeouts' commercial outcomes.`;
+    if (roles.includes('TechnicalEvaluator'))
+      return $localize`:@@overview.intro.evaluator:You score the bids you are assigned to evaluate.`;
+    if (roles.includes('ProjectManager'))
+      return $localize`:@@overview.intro.projectManager:You take awards into your projects and record how the work went.`;
+    return null;
+  });
+
+  /**
+   * CF-016: one secondary link by role, beside My work. Phase 3 SI-132: only to a capability the company's plan includes (as the
+   * navigation decides), with a fallback to Projects; the evaluator and the Director work from My work, which lists exactly what
+   * is theirs, so they get no second link that would open every tender.
+   */
   protected readonly roleLink = computed<RoleLink | null>(() => {
     const roles = this.session.identity()?.roles ?? [];
     const has = (role: string) => roles.includes(role);
-    const link = (
-      path: string,
-      label: string,
-      query?: Record<string, string>,
-      fragment?: string,
-    ): RoleLink => ({
+    const plan = (features: readonly string[]) =>
+      features.every((feature) => this.entitlements.has(feature));
+    const link = (path: string, label: string, query?: Record<string, string>): RoleLink => ({
       path,
       label,
       query,
-      fragment,
     });
+    const projects = () =>
+      this.canViewProjects()
+        ? link('/projects', $localize`:@@overview.link.projects:Projects`)
+        : null;
     if (has('CompanyAdmin'))
       return link('/admin/company', $localize`:@@overview.link.companySetup:Company setup`);
-    if (has('ApproverDirector'))
-      return link(
-        '/',
-        $localize`:@@overview.link.myApprovals:Awaiting my approval`,
-        undefined,
-        'my-work-title',
-      );
+    if (has('ApproverDirector') || has('TechnicalEvaluator')) return null;
     if (has('ProcurementManager'))
-      return link('/tenders', $localize`:@@overview.link.tenders:Tenders in progress`);
+      return plan(TENDERING_FEATURES)
+        ? link('/tenders', $localize`:@@overview.link.tenders:Tenders in progress`)
+        : projects();
     if (has('ProcurementOfficer'))
-      return link('/sourcing', $localize`:@@overview.link.sourcing:Sourcing and tenders`);
-    if (has('TechnicalEvaluator'))
-      return link('/tenders', $localize`:@@overview.link.evaluations:My evaluations`, {
-        stage: 'Opened',
-      });
+      return plan(SOURCING_FEATURES)
+        ? link('/sourcing', $localize`:@@overview.link.sourcing:Sourcing and tenders`)
+        : projects();
     if (has('CommercialQs'))
-      return link('/tenders', $localize`:@@overview.link.leveling:Leveling to complete`, {
-        stage: 'Opened',
-      });
+      return plan(EVALUATION_FEATURES)
+        ? link('/tenders', $localize`:@@overview.link.openedTenders:Tenders with opened bids`, {
+            stage: 'Opened',
+          })
+        : projects();
     if (has('ProjectManager'))
-      return link('/closeouts', $localize`:@@overview.link.closeouts:Closeouts due`, {
-        status: 'Pending',
-      });
+      return plan(PERFORMANCE_FEATURES)
+        ? link('/closeouts', $localize`:@@overview.link.closeouts:Closeouts due`, {
+            status: 'Pending',
+          })
+        : projects();
     return null;
   });
 

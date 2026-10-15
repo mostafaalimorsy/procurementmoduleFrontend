@@ -1,8 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { BusinessDatePipe } from '../../core/localization/business-format';
 import { CloseoutTabs } from './closeout-tabs';
+import { RecordLinks } from '../../shared/navigation/record-links';
 import { LocaleService } from '../../core/localization/locale.service';
 import { money } from '../evaluation/evaluation-format';
 import {
@@ -13,6 +14,7 @@ import {
   performanceProblemMessage,
 } from './performance.api';
 import { categoryLabel, lifecycleLabel } from './performance-labels';
+import { listUrlState, oneOfParam, pageParam } from '../../core/navigation/list-url-state';
 
 /**
  * Every award of the company with its closeout state (Part 11): pending closeouts first to find, then those in progress,
@@ -26,8 +28,12 @@ import { categoryLabel, lifecycleLabel } from './performance-labels';
 })
 export class CloseoutsList implements OnInit {
   private readonly api = inject(PerformanceApi);
-  private readonly route = inject(ActivatedRoute);
+  private readonly url = listUrlState();
+  /** The list state on screen (its URL key), so a URL that already says so does not load it twice. */
+  private shown = '';
   readonly locale = inject(LocaleService).locale;
+  /** Phase 3 SI-066: each card links up to its tender, project, work package and firm, for readers who can open them. */
+  readonly links = inject(RecordLinks);
   readonly lifecycleLabel = lifecycleLabel;
   readonly categoryLabel = categoryLabel;
   readonly lifecycles = LIFECYCLES;
@@ -39,20 +45,32 @@ export class CloseoutsList implements OnInit {
   page = 1;
 
   ngOnInit(): void {
-    // Part 12: a dashboard link may open the list already filtered.
-    const status = this.route.snapshot?.queryParamMap?.get('status') ?? null;
-    if (this.lifecycles.includes(status as CloseoutLifecycle))
-      this.status = status as CloseoutLifecycle;
-    this.load();
+    // Part 12: a dashboard link may open the list already filtered. Phase 3 SI-065: the status, search and page live in the URL.
+    this.url.watch((params) => {
+      this.status = oneOfParam(params, 'status', this.lifecycles);
+      this.search = params.get('q') ?? '';
+      this.page = pageParam(params);
+      const shown = this.url.key({ status: this.status, q: this.search.trim(), page: this.page });
+      if (shown === this.shown) return;
+      this.shown = shown;
+      this.load();
+    });
   }
 
   applyFilter(): void {
     this.page = 1;
-    this.load();
+    this.sync();
   }
 
   goToPage(page: number): void {
     this.page = page;
+    this.sync();
+  }
+
+  private sync(): void {
+    const values = { status: this.status, q: this.search.trim(), page: this.page };
+    this.url.write(values);
+    this.shown = this.url.key(values);
     this.load();
   }
 

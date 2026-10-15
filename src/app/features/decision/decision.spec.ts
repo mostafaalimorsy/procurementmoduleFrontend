@@ -3,6 +3,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { of } from 'rxjs';
+import { EntitlementsService } from '../../core/auth/entitlements.service';
 import { SessionService } from '../../core/auth/session.service';
 import { KNOWN_PROBLEM_CODES, knownProductProblem } from '../../core/localization/product-problem';
 import { DecisionStep, DecisionWorkspace } from './decision.api';
@@ -125,6 +126,38 @@ describe('The reserved approval rule name (red-team Y)', () => {
     expect(
       knownProductProblem({ code: 'approval_rule.name_reserved', parameters: { name: 'default' } }),
     ).toBe('The name “default” is reserved for the route used when no rule matches.');
+  });
+});
+
+describe('A withdrawn award reads as withdrawn (Phase 3 SI-060)', () => {
+  it('titles the award by its state, offers no closeout and puts the facts before the exception actions', () => {
+    const ended = award({
+      sequence: 2,
+      state: 'Withdrawn',
+      response: null,
+      withdrawals: [],
+      actions: {
+        recordResponse: false,
+        recordDecline: false,
+        requestWithdrawal: false,
+        decideWithdrawal: false,
+        closeForRetender: true,
+        promoteNext: false,
+      },
+    });
+    const { element } = render(decision({ status: 'Awarded', award: ended }), 'award', [
+      'Decision.View',
+      'Performance.View',
+    ]);
+    const heading = element.querySelector('#award-title')!;
+    expect(text(heading)).toContain('Award withdrawn');
+    expect(text(element)).toContain('No performance closeout applies to it');
+    expect(element.querySelector('a[href^="/closeouts/"]')).toBeNull();
+    const outcome = element.querySelector('app-award-outcome');
+    if (outcome)
+      expect(
+        heading.compareDocumentPosition(outcome) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
   });
 });
 
@@ -480,6 +513,40 @@ describe('Decision workspace', () => {
     const shown = text(element);
     expect(shown).toContain('below the minimum of 2, not a history yet');
     expect(shown).toContain("the policy's neutral value was used");
+    verifyAll(http);
+  });
+
+  it('shows where the neutral history value sits against the weighed firms (Phase 3 SI-043)', () => {
+    const base = decision();
+    const rec = base.recommendation!;
+    const history = (score: string, sampleSize: number) => ({
+      score,
+      sampleSize,
+      earliestOutcomeAtUtc: null,
+      latestOutcomeAtUtc: '2026-09-25T09:00:00Z',
+      category: 'Mechanical',
+      scoreRule: 'performance-outcome-v3',
+      outcomes: [],
+    });
+    const { element, http } = render(
+      decision({
+        recommendation: {
+          ...rec,
+          historyRule: 'partial-v2',
+          neutralHistoryScore: 50,
+          candidates: [
+            { ...rec.candidates[0], history: history('83', 4) },
+            { ...rec.candidates[1], history: history('64', 2) },
+            ...rec.candidates.slice(2).map((c) => ({ ...c, history: history('90', 1) })),
+          ],
+        },
+      }),
+      'recommendation',
+    );
+    const line = text(element.querySelector('[data-testid="neutral-range"]')!);
+    // Only firms with at least 2 closeouts are weighed on their history; the one-project firm is not in the range.
+    expect(line).toContain('scored 64–83 (2)');
+    expect(line).toContain('the neutral value is 50, below 2 of them');
     verifyAll(http);
   });
 
@@ -1251,7 +1318,7 @@ describe('Approval route facts (CF-034, CF-099, CF-136)', () => {
     const { element } = render(routed({}), 'approval', ['Decision.View', 'Award.Approve']);
     const link = element.querySelector<HTMLAnchorElement>('a[href^="/approval-matrix/read"]')!;
     expect(link.getAttribute('href')).toBe('/approval-matrix/read?rule=Up%20to%205M');
-    expect(text(link).trim()).toBe('See this rule in the approval routes');
+    expect(text(link).trim()).toBe('See this rule in the approval rules');
     TestBed.resetTestingModule();
     const fallback = render(routed({ ruleName: 'Default route', isDefault: true }), 'approval', [
       'Decision.View',
@@ -1747,5 +1814,54 @@ describe('Preparing the next decision after a released award (red-team G076, CF-
     expect(text(element)).toContain('Explain why a firm not ranked first is proposed');
     expect(element.querySelector('[role="dialog"]')).toBeNull();
     verifyAll(http);
+  });
+});
+
+describe('An award with a withdrawal pending offers no closeout (Phase 3 SI-060)', () => {
+  it('says why instead of linking the performance closeout', () => {
+    const pendingWithdrawal = award({ state: 'WithdrawalPending' });
+    const { element } = render(decision({ status: 'Awarded', award: pendingWithdrawal }), 'award', [
+      'Decision.View',
+      'Performance.View',
+    ]);
+    expect(text(element)).toContain('A withdrawal of this award awaits approval');
+    expect(element.querySelector('a[href^="/closeouts/"]')).toBeNull();
+  });
+});
+
+describe('Recommended firms link to their profile (Phase 3 SI-066)', () => {
+  function withFirm(permissions: readonly string[]) {
+    const http = configure('recommendation', permissions);
+    (
+      TestBed.inject(EntitlementsService) as unknown as {
+        current: { set: (value: readonly string[]) => void };
+      }
+    ).current.set(['subcontractor_directory']);
+    const page = TestBed.createComponent(DecisionPage);
+    page.detectChanges();
+    const base = recommendation();
+    http.expectOne('/api/v1/tenders/t1/decision').flush(
+      decision({
+        recommendation: {
+          ...base,
+          candidates: base.candidates.map((entry) => ({ ...entry, subcontractorId: 's1' })),
+        },
+      }),
+    );
+    page.detectChanges();
+    return page.nativeElement as HTMLElement;
+  }
+
+  it('links a candidate to /subcontractors/:id for a directory reader', () => {
+    const element = withFirm(['Decision.View', 'Subcontractors.View']);
+    const link = element.querySelector('[data-testid="candidate-firm-link"]')!;
+    expect(link.getAttribute('href')).toBe('/subcontractors/s1');
+  });
+
+  it('keeps the firm as text for a reader without the directory', () => {
+    const element = withFirm(['Decision.View']);
+    const link = element.querySelector('[data-testid="candidate-firm-link"]')!;
+    expect(link.hasAttribute('href')).toBe(false);
+    expect(text(link)).toContain('ACME-01');
   });
 });

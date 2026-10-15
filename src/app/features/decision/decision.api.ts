@@ -398,6 +398,13 @@ export interface HistoricalOutcome {
   readonly variationSharePercent?: string | null;
   readonly residualCostVariancePercent?: string | null;
   readonly outcomeType?: string;
+  /** Phase 3 SI-114 (ADR-124): how far a subcontract that did not complete got (0–100); null on recommendations computed before. */
+  readonly percentComplete?: number | null;
+  /**
+   * Phase 3 SI-046 (ADR-127): under the partial history rule, this project's rule-v3 score (the history score is the whole-number mean of
+   * these); null under the all-or-nothing rule and on recommendations computed before it was kept.
+   */
+  readonly outcomeScoreV3?: string | null;
 }
 
 /** Part 11: a candidate's category history — the engine's whole-number score, always with sample size and recency. */

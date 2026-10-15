@@ -15,6 +15,7 @@ import {
   AuditFacets,
   AuditFilter,
 } from './audit.api';
+import { listUrlState, oneOfParam, pageParam } from '../../core/navigation/list-url-state';
 
 /**
  * The company audit log (Part 12, ADR-080): who did what, when, on which record — filtered and paged on the server, newest first. The
@@ -38,6 +39,9 @@ export class AuditLogPage implements OnInit {
 
   private readonly api = inject(AuditApi);
   private readonly document = inject(DOCUMENT);
+  private readonly url = listUrlState();
+  /** The list state on screen (its URL key), so a URL that already says so does not load it twice. */
+  private shown = '';
   readonly areas = AUDIT_AREAS;
   readonly result = signal<Paged<AuditEntry> | null>(null);
   readonly facets = signal<AuditFacets | null>(null);
@@ -64,7 +68,30 @@ export class AuditLogPage implements OnInit {
     this.api
       .chain()
       .subscribe({ next: (chain) => this.chain.set(chain), error: () => this.chain.set(null) });
-    this.load();
+    // Phase 3 SI-065: the applied filters and the page live in the URL (Back, reload, a shared link).
+    this.url.watch((params) => {
+      this.area = oneOfParam(params, 'area', this.areas);
+      this.action = params.get('action') ?? '';
+      this.actor = params.get('actor') ?? '';
+      this.from = params.get('from') ?? '';
+      this.to = params.get('to') ?? '';
+      this.reference = params.get('reference') ?? '';
+      this.requestId = params.get('request') ?? '';
+      this.applied = {
+        area: this.area,
+        action: this.action,
+        actor: this.actor,
+        from: this.from,
+        to: this.to,
+        reference: this.reference,
+        requestId: this.requestId,
+      };
+      this.page = pageParam(params);
+      const shown = this.url.key(this.urlValues());
+      if (shown === this.shown) return;
+      this.shown = shown;
+      this.load();
+    });
   }
 
   filter(): AuditFilter {
@@ -95,7 +122,7 @@ export class AuditLogPage implements OnInit {
       requestId: this.requestId,
     };
     this.page = 1;
-    this.load();
+    this.sync();
   }
 
   clear(): void {
@@ -122,7 +149,28 @@ export class AuditLogPage implements OnInit {
 
   goToPage(page: number): void {
     this.page = page;
+    this.sync();
+  }
+
+  private sync(): void {
+    const values = this.urlValues();
+    this.url.write(values);
+    this.shown = this.url.key(values);
     this.load();
+  }
+
+  private urlValues() {
+    const f = this.applied;
+    return {
+      area: f.area,
+      action: f.action,
+      actor: f.actor,
+      from: f.from,
+      to: f.to,
+      reference: f.reference?.trim(),
+      request: f.requestId?.trim(),
+      page: this.page,
+    };
   }
 
   load(): void {

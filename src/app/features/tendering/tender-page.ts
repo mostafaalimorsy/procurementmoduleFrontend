@@ -12,6 +12,7 @@ import { TenderControl } from './tender-control';
 import { TenderOrigin } from './tender-origin';
 import { TenderDetail, TenderingApi, tenderProblemMessage } from './tendering.api';
 import { TenderStageHeader } from './tender-stage-header';
+import { SavedNotice } from '../../core/a11y/saved-notice';
 
 /**
  * One tender. A draft opens in the builder; a published or cancelled tender opens in the Tender Control
@@ -19,7 +20,7 @@ import { TenderStageHeader } from './tender-stage-header';
  */
 @Component({
   selector: 'app-tender-page',
-  imports: [TenderStageHeader, RouterLink, TenderBuilder, TenderControl, TenderOrigin],
+  imports: [SavedNotice, TenderStageHeader, RouterLink, TenderBuilder, TenderControl, TenderOrigin],
   styleUrl: './tendering.scss',
   template: `
     <section class="prj-page">
@@ -62,6 +63,7 @@ import { TenderStageHeader } from './tender-stage-header';
             <h1>
               <bdi>{{ item.title }}</bdi>
             </h1>
+            <app-saved-notice />
             <p class="tnd-meta">
               <!-- CF-009: where the tender is (its stage), never the stored "Published". -->
               <span class="prj-chip tnd-status tnd-status--{{ item.status }}">{{

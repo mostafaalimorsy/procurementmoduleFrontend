@@ -26,6 +26,10 @@ import {
 /** CF-015: every tender page also reads its stage header; the header is not what these tests are about. */
 function verifyAll(http: HttpTestingController): void {
   http.match((request) => request.url.endsWith('/stage')).forEach((request) => request.flush(null));
+  // Phase 3 SI-041: the overview of a commercial reader also reads the per-firm leveled totals; not what most tests are about.
+  http
+    .match((request) => request.url.endsWith('/evaluation/commercial/summary'))
+    .forEach((request) => request.flush(null, { status: 403, statusText: 'Forbidden' }));
   http.verify();
 }
 
@@ -1231,7 +1235,14 @@ describe('Negotiation rounds in the evaluation (Part 10)', () => {
 });
 
 describe('What follows a completed evaluation (CF-007)', () => {
-  function completed(features: string[], permissions: string[], latestClosedRound = 0, round = 0) {
+  function completed(
+    features: string[],
+    permissions: string[],
+    latestClosedRound = 0,
+    round = 0,
+    awarded = false,
+    host?: { element?: HTMLElement },
+  ) {
     const http = configure(['Evaluation.View', ...permissions]);
     (
       TestBed.inject(EntitlementsService) as unknown as {
@@ -1245,6 +1256,7 @@ describe('What follows a completed evaluation (CF-007)', () => {
       overview({
         stage: 'Completed',
         latestClosedRound,
+        tenderAwarded: awarded,
         evaluation: state({
           status: 'Completed',
           round,
@@ -1254,8 +1266,28 @@ describe('What follows a completed evaluation (CF-007)', () => {
       }),
     );
     page.detectChanges();
+    if (host) host.element = page.nativeElement as HTMLElement;
     return text(page.nativeElement as HTMLElement);
   }
+
+  it('says only that the tender was awarded once it is (Phase 3 SI-059), never "ready for the decision stage"', () => {
+    const shown = completed(['award'], ['Decision.View'], 0, 0, true);
+    expect(shown).toContain('The tender was awarded');
+    expect(shown).not.toContain('ready for the decision stage');
+  });
+
+  it('leads with where the evaluation stands and folds the opening record after it (Phase 3 SI-041)', () => {
+    const host: { element?: HTMLElement } = {};
+    completed(['award'], ['Decision.View'], 0, 0, false, host);
+    const element = host.element!;
+    const progress = element.querySelector('#progress-title')!;
+    const record = element.querySelector('#opening-title')!;
+    expect(
+      progress.compareDocumentPosition(record) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect((record.closest('details') as HTMLDetailsElement).open).toBe(false);
+    expect(progress.textContent).toContain('Completed');
+  });
 
   it('never promises the decision stage on a plan without the award', () => {
     const shown = completed([], ['Decision.View']);
@@ -1437,5 +1469,110 @@ describe('Leveling estimate and validity facts (red-team B7: G036, G037, G050)',
     expect(grid).toContain('until Dec 30, 2026, 12:00 (Asia/Qatar, UTC+03:00)');
     expect(grid).toContain('Lapsed');
     expect(text(element)).toContain('Validity runs from the submission deadline');
+  });
+});
+
+describe('Per-firm evaluation summary (Phase 3 SI-041)', () => {
+  const summaryUrl = '/api/v1/tenders/t1/evaluation/commercial/summary';
+
+  function load(view = overview()) {
+    const page = TestBed.createComponent(EvaluationPage);
+    page.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/v1/tenders/t1/opening').flush(opened());
+    http.expectOne('/api/v1/tenders/t1/evaluation').flush(view);
+    page.detectChanges();
+    return { page, element: page.nativeElement as HTMLElement };
+  }
+
+  it("shows each firm's scorecards against the panel minimum and, for a commercial reader, its leveled total", () => {
+    const http = configure(['Evaluation.View', 'Evaluation.ViewCommercial']);
+    const base = overview();
+    const { page, element } = load(
+      overview({ bids: [{ ...base.bids[0], submittedScorecards: 1, requiredScorecards: 2 }] }),
+    );
+    http.expectOne(summaryUrl).flush({
+      tenderId: 't1',
+      currency: 'QAR',
+      levelingCompleted: true,
+      bids: [
+        {
+          openingBidId: 'b1',
+          currency: 'QAR',
+          currencyMismatch: false,
+          submittedTotal: '1000000.00',
+          leveledTotal: '987500.00',
+        },
+      ],
+    });
+    page.detectChanges();
+    expect(text(element)).toContain('Summary per firm');
+    expect(text(element)).toContain('1 of 2 required');
+    expect(text(element)).toContain('Leveled total');
+    expect(text(element.querySelector('[data-testid="leveled-total"]') as HTMLElement)).toContain(
+      '987,500.00 QAR',
+    );
+    verifyAll(http);
+  });
+
+  it('says "not leveled yet" while the leveling is open, with the submitted total beside it', () => {
+    const http = configure(['Evaluation.View', 'Evaluation.ViewCommercial']);
+    const { page, element } = load();
+    http.expectOne(summaryUrl).flush({
+      tenderId: 't1',
+      currency: 'QAR',
+      levelingCompleted: false,
+      bids: [
+        {
+          openingBidId: 'b1',
+          currency: 'USD',
+          currencyMismatch: true,
+          submittedTotal: '1000000.00',
+          leveledTotal: '990000.00',
+        },
+      ],
+    });
+    page.detectChanges();
+    const cell = text(element.querySelector('[data-testid="leveled-total"]') as HTMLElement);
+    expect(cell).toContain('Not leveled yet');
+    expect(cell).toContain('Submitted: 1,000,000.00 USD');
+    expect(cell).toContain('another currency');
+    expect(cell).not.toContain('990,000.00');
+    verifyAll(http);
+  });
+
+  it('never asks for or shows a price to a reader without the commercial evaluation', () => {
+    const http = configure(['Evaluation.View', 'Evaluation.ViewTechnical']);
+    const { element } = load(overview({ access: TECHNICAL_ONLY }));
+    http.expectNone(summaryUrl);
+    expect(text(element)).toContain('Summary per firm');
+    expect(text(element)).not.toContain('Leveled total');
+    verifyAll(http);
+  });
+
+  it('leaves the column out when the server refuses the summary (403)', () => {
+    const http = configure(['Evaluation.View']);
+    const { page, element } = load();
+    http.expectOne(summaryUrl).flush(null, { status: 403, statusText: 'Forbidden' });
+    page.detectChanges();
+    expect(text(element)).not.toContain('Leveled total');
+    verifyAll(http);
+  });
+
+  it('lists what each bid still needs in its own row', () => {
+    const http = configure(['Evaluation.View']);
+    const { element } = load(
+      overview({
+        access: TECHNICAL_ONLY,
+        completionGaps: [
+          { key: 'commercialLevelingIncomplete', subjectId: null },
+          { key: 'technicalScorecardMissing', subjectId: 'b1' },
+        ],
+      }),
+    );
+    const row = element.querySelector('table[aria-labelledby="firm-summary-title"] tbody tr');
+    expect(text(row as HTMLElement)).toContain('A bid has no submitted technical scorecard.');
+    expect(text(row as HTMLElement)).not.toContain('Commercial leveling is not marked complete.');
+    verifyAll(http);
   });
 });

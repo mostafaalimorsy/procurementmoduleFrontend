@@ -24,6 +24,14 @@ import { directoryProblemMessage } from './subcontractors.api';
   selector: 'app-subcontractor-compliance',
   imports: [FormsModule, BusinessDatePipe],
   templateUrl: './subcontractor-compliance.html',
+  // Phase 3 SI-024: the record form opens under its button.
+  styles: `
+    .cmp-record > summary {
+      margin-block: 1rem 0.5rem;
+      list-style: none;
+      cursor: pointer;
+    }
+  `,
 })
 export class SubcontractorComplianceView implements OnInit {
   private readonly api = inject(ComplianceApi);
@@ -34,6 +42,8 @@ export class SubcontractorComplianceView implements OnInit {
   readonly stateLabel = complianceStateLabel;
   readonly vendorLabel = vendorStatusLabel;
   readonly statuses = VENDOR_STATUSES;
+  /** Phase 3 SI-024: whether the record form is open (closed until asked for). */
+  readonly recordOpen = signal(false);
   readonly file = signal<SubcontractorCompliance | null>(null);
   readonly error = signal('');
   readonly notice = signal('');

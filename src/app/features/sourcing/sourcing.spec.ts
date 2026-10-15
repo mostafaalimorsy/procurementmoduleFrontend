@@ -978,3 +978,68 @@ describe('history chips in discovery (CF-014)', () => {
     expect(chips[2]).toContain('would work again yes 1 · conditional 0 · no 0');
   });
 });
+
+describe('Approved shortlist guidance after tendering (Phase 3 SI-059)', () => {
+  function render(permissions: readonly string[], workPackage: Record<string, unknown> | null) {
+    const http = configure(permissions, [...FEATURES, 'tendering']);
+    const fixture = TestBed.createComponent(SourcingDetailPage);
+    fixture.detectChanges();
+    http.expectOne('/api/v1/trades').flush([]);
+    http.expectOne('/api/v1/sourcing/src1').flush(
+      sourcing({
+        status: 'ShortlistApproved',
+        lockReason: 'sourcing.shortlist_approved_read_only',
+        candidates: [candidate({ result: 'Qualified', criteria: ALL_MET, isShortlisted: true })],
+      }),
+    );
+    fixture.detectChanges();
+    const read = http.match('/api/v1/work-packages/wp1');
+    if (workPackage) read.forEach((request) => request.flush(workPackage));
+    else read.forEach((request) => request.flush(null, { status: 403, statusText: 'Forbidden' }));
+    fixture.detectChanges();
+    return { reads: read.length, element: fixture.nativeElement as HTMLElement };
+  }
+
+  it('no longer says "may proceed to tendering" once the package\'s tender is awarded', () => {
+    const { reads, element } = render([...MANAGER, 'WorkPackages.View'], {
+      id: 'wp1',
+      procurementStage: 'Awarded',
+      latestTenderId: 't9',
+      latestTenderReference: 'TND-2026-0009',
+    });
+    expect(reads).toBe(1);
+    const guidance = text(element.querySelector('.src-guidance') as HTMLElement);
+    expect(guidance).not.toContain('proceed to tendering');
+    expect(guidance).toContain('TND-2026-0009');
+    expect(guidance).toContain('was awarded');
+  });
+
+  it('names a tender under way by its stage', () => {
+    const { element } = render([...MANAGER, 'WorkPackages.View'], {
+      id: 'wp1',
+      procurementStage: 'OpenForBids',
+      latestTenderId: 't9',
+      latestTenderReference: 'TND-2026-0009',
+    });
+    const guidance = text(element.querySelector('.src-guidance') as HTMLElement);
+    expect(guidance).toContain('is under way (Open for bids)');
+  });
+
+  it('keeps the approved guidance when the package was never tendered or cannot be read', () => {
+    let { element } = render([...MANAGER, 'WorkPackages.View'], {
+      id: 'wp1',
+      procurementStage: null,
+    });
+    expect(text(element.querySelector('.src-guidance') as HTMLElement)).toContain(
+      'may proceed to tendering',
+    );
+    TestBed.resetTestingModule();
+    ({ element } = render([...MANAGER, 'WorkPackages.View'], null));
+    expect(text(element.querySelector('.src-guidance') as HTMLElement)).toContain(
+      'may proceed to tendering',
+    );
+    TestBed.resetTestingModule();
+    const without = render(MANAGER, null);
+    expect(without.reads).toBe(0);
+  });
+});

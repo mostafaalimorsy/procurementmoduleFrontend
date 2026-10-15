@@ -1,5 +1,6 @@
 @use './app/shared/styles/tokens';
 @use './app/shared/styles/projects';
+@use './app/shared/styles/utilities';
 @use './app/shared/styles/shell';
 
 * {
@@ -17,6 +18,32 @@ body {
 :focus-visible {
   outline: 3px solid var(--color-accent);
   outline-offset: 4px;
+}
+/* Phase 3 SI-144: a native date or month field shows its focus ring too (its inner segments take focus, so :focus-visible on
+   the field itself never matched), and checkboxes and radios are a readable size with a 24 px hit area through their label. */
+input[type='date']:focus,
+input[type='month']:focus,
+input[type='datetime-local']:focus,
+input[type='time']:focus {
+  outline: 3px solid var(--color-accent);
+  outline-offset: 2px;
+}
+input[type='checkbox'],
+input[type='radio'] {
+  inline-size: 1.125rem;
+  block-size: 1.125rem;
+  accent-color: var(--color-accent);
+}
+select {
+  min-block-size: 1.5rem;
+}
+/* Phase 3 SI-140: one link colour, at zero specificity so navigation, buttons and chips styled as links keep their own rules. */
+:where(a) {
+  color: var(--color-accent);
+  text-underline-offset: 0.15em;
+}
+:where(a:hover) {
+  color: var(--color-ink);
 }
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -75,7 +102,7 @@ html:lang(ar) app-overview {
     font-weight: 700;
   }
   h1 {
-    font-size: clamp(2.2rem, 4.5vw, 3.7rem);
+    font-size: clamp(1.8rem, 3.6vw, 2.5rem);
     font-weight: 600;
     line-height: 1.38;
   }

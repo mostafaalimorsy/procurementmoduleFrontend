@@ -18,6 +18,7 @@ import {
 } from './subcontractors.api';
 import { ErrorSummary } from '../../shared/ui/error-summary';
 import { AssignableUser, ProjectsApi } from '../projects/projects.api';
+import { savedState } from '../../core/a11y/saved-notice';
 
 /** A contact row being edited; `id` is kept for existing contacts so their identity survives the edit. */
 interface ContactRow {
@@ -183,7 +184,11 @@ export class SubcontractorForm implements OnInit {
       ? this.api.update(current.id, { ...body, version: current.version })
       : this.api.create({ ...body, code: this.code.trim() });
     request.subscribe({
-      next: (item) => this.router.navigate(['/subcontractors', item.id]),
+      next: (item) =>
+        this.router.navigate(
+          ['/subcontractors', item.id],
+          savedState(current ? 'updated' : 'created'),
+        ),
       error: (error: unknown) => {
         this.error.set(directoryProblemMessage(error));
         const field = problemField(error);

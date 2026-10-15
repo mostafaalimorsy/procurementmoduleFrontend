@@ -27,7 +27,7 @@
 .pack-facts {
   display: grid;
   gap: 0.25rem 1.5rem;
-  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
 
   dt {
     font-weight: 600;
@@ -60,6 +60,14 @@
 
 section {
   break-inside: avoid-page;
+}
+
+// Phase 3 SI-121 / SI-142: on a phone a wide table scrolls within its own width instead of widening the page.
+@media screen and (max-width: 40rem) {
+  .pack-table {
+    display: block;
+    overflow-x: auto;
+  }
 }
 
 @media print {

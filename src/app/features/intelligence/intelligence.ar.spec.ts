@@ -229,14 +229,16 @@ describe('Dashboard, search and audit in Arabic', () => {
     const shown = text(dashboard.nativeElement as HTMLElement);
     for (const phrase of [
       'شركتك اليوم',
-      'ما يحتاج إلى متابعة',
+      // Phase 3 SI-064: the administration-only Company Admin reads the company-wide list as information.
+      'للاطلاع',
       'ترسيات بلا إغلاق',
       'أين توجد أدلتك',
-      'قرار بانتظار الموافقة',
+      'قرار بانتظار الاعتماد',
     ])
       expect(shown).toContain(phrase);
     for (const english of [
       'Needs attention',
+      'For information',
       'Where your evidence is',
       'Awards without a closeout',
     ])

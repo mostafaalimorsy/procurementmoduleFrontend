@@ -37,6 +37,81 @@ const security = {
   idleTimeoutMinutes: 60,
 };
 
+describe('A compact directory (Phase 3 SI-084)', () => {
+  function render() {
+    TestBed.configureTestingModule({
+      imports: [UsersAdmin],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        {
+          provide: SessionService,
+          useValue: {
+            identity: () => ({ companyName: 'Delta', userId: 'u1' }),
+            hasPermission: () => true,
+          },
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(UsersAdmin);
+    fixture.detectChanges();
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/v1/admin/users').flush([
+      user({
+        id: 'u1',
+        email: 'admin@delta.example',
+        displayName: 'Dana Admin',
+        role: 'CompanyAdmin',
+      }),
+      user(),
+      user({
+        id: 'u3',
+        email: 'sara@delta.example',
+        displayName: 'Sara Suspended',
+        status: 'Suspended',
+      }),
+    ]);
+    for (const request of http.match(() => true)) {
+      if (request.request.url === '/api/v1/company/security')
+        request.flush({
+          mfaRequiredRoles: [],
+          alwaysRequired: ['CompanyAdmin'],
+          isDefault: true,
+          version: null,
+          idleTimeoutMinutes: 60,
+        });
+      else if (request.request.url !== '/api/v1/admin/users') request.flush(null);
+    }
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('finds a person by name or email and by status, edits under Manage, and puts sign-in security after the people', () => {
+    const fixture = render();
+    const element = fixture.nativeElement as HTMLElement;
+    const rows = () =>
+      [...element.querySelectorAll('.users-section tbody tr')].map((row) => row.textContent ?? '');
+    expect(rows()).toHaveLength(3);
+    fixture.componentInstance.query.set('SARA@');
+    fixture.detectChanges();
+    expect(rows()).toHaveLength(1);
+    expect(rows()[0]).toContain('Sara Suspended');
+    fixture.componentInstance.query.set('');
+    fixture.componentInstance.statusFilter.set('Active');
+    fixture.detectChanges();
+    expect(rows().every((row) => !row.includes('Sara Suspended'))).toBe(true);
+    const manage = element.querySelector('.row-manage') as HTMLDetailsElement;
+    expect(manage.open).toBe(false);
+    expect(manage.querySelector('select')).not.toBeNull();
+    const directory = element.querySelector('#users-title')!;
+    const security = element.querySelector('#security-title')!;
+    expect(
+      directory.compareDocumentPosition(security) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+});
+
 describe('Users admin confirmations (CF-088)', () => {
   function render() {
     TestBed.configureTestingModule({

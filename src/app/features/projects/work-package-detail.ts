@@ -16,10 +16,15 @@ import {
   WORK_PACKAGE_STATUS_ACTION,
   lifecycleActionClass,
 } from './projects.api';
+import { SavedNotice } from '../../core/a11y/saved-notice';
+import { tenderLifecycleLabel } from '../../core/localization/labels';
+import { RecordLinks } from '../../shared/navigation/record-links';
+import { AwardSummaryBlock } from '../decision/award-summary';
 
 @Component({
   selector: 'app-work-package-detail',
   imports: [
+    SavedNotice,
     FormsModule,
     RouterLink,
     BusinessDatePipe,
@@ -27,6 +32,7 @@ import {
     ConfirmDialog,
     WorkPackageSourcing,
     WorkPackageTender,
+    AwardSummaryBlock,
   ],
   templateUrl: './work-package-detail.html',
 })
@@ -38,6 +44,9 @@ export class WorkPackageDetailPage implements OnInit {
 
   readonly permissions = PROJECT_PERMISSIONS;
   readonly statusLabel = projectStatusLabel;
+  /** Phase 3 SI-058: the latest tender's stage, and a link to it for readers who can open it. */
+  readonly stageLabel = tenderLifecycleLabel;
+  readonly links = inject(RecordLinks);
   readonly item = signal<WorkPackageDetail | null>(null);
   readonly loading = signal(true);
   readonly error = signal('');

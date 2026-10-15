@@ -7,13 +7,24 @@
       <a
         class="brand"
         routerLink="/"
-        aria-label="Subcontractor Intelligence home"
+        aria-label="Subtriva home"
         i18n-aria-label="@@shell.homeLabel"
       >
-        <span class="brand-mark" aria-hidden="true">SI</span>
-        <span class="brand-name" i18n="@@shell.brand"
-          >Subcontractor<br /><strong>Intelligence</strong></span
-        >
+        <!-- The official Subtriva assets (light variants on the light header); the link's label names it. -->
+        <img
+          class="brand-logo"
+          src="brand/subtriva-logo-light.svg"
+          alt=""
+          width="470"
+          height="128"
+        />
+        <img
+          class="brand-icon"
+          src="brand/subtriva-icon-light.svg"
+          alt=""
+          width="128"
+          height="128"
+        />
       </a>
       @if (session.identity()?.companyName; as company) {
         <span class="context-chip">
@@ -112,103 +123,143 @@
                 Settings
               </summary>
               <div class="nav-settings-menu">
-                @if (showPolicies()) {
-                  <a
-                    routerLink="/evaluation-policies"
-                    [class.is-active]="section() === 'policies'"
-                    [attr.aria-current]="section() === 'policies' ? 'page' : null"
-                    i18n="@@nav.evaluationPolicies"
-                    >Scorecard policies</a
-                  >
+                <!-- Phase 3 SI-021: Settings grouped by what a page is for (rules, oversight, people and company), each group
+                     named for assistive technology; a group shows only when one of its pages is open to the reader. -->
+                @if (
+                  showPolicies() ||
+                  showRecommendationPolicies() ||
+                  showApprovalMatrix() ||
+                  showApprovalRoutes()
+                ) {
+                  <div class="nav-settings-group" role="group" aria-labelledby="nav-group-rules">
+                    <p id="nav-group-rules" class="nav-settings-heading" i18n="@@nav.groupRules">
+                      Procurement rules
+                    </p>
+                    @if (showPolicies()) {
+                      <a
+                        routerLink="/evaluation-policies"
+                        [class.is-active]="section() === 'policies'"
+                        [attr.aria-current]="section() === 'policies' ? 'page' : null"
+                        i18n="@@nav.evaluationPolicies"
+                        >Scorecard policies</a
+                      >
+                    }
+                    @if (showRecommendationPolicies()) {
+                      <a
+                        routerLink="/recommendation-policies"
+                        [class.is-active]="section() === 'recommendationPolicies'"
+                        [attr.aria-current]="section() === 'recommendationPolicies' ? 'page' : null"
+                        i18n="@@nav.recommendationPolicies"
+                        >Recommendation policies</a
+                      >
+                    }
+                    @if (showApprovalMatrix() || showApprovalRoutes()) {
+                      <a
+                        [routerLink]="
+                          showApprovalMatrix() ? '/approval-matrix' : '/approval-matrix/read'
+                        "
+                        [class.is-active]="section() === 'approvalMatrix'"
+                        [attr.aria-current]="section() === 'approvalMatrix' ? 'page' : null"
+                        i18n="@@nav.approvalMatrix"
+                        >Approval rules</a
+                      >
+                    }
+                  </div>
                 }
-                @if (showRecommendationPolicies()) {
-                  <a
-                    routerLink="/recommendation-policies"
-                    [class.is-active]="section() === 'recommendationPolicies'"
-                    [attr.aria-current]="section() === 'recommendationPolicies' ? 'page' : null"
-                    i18n="@@nav.recommendationPolicies"
-                    >Recommendation policies</a
+                @if (showAudit() || showPilotMetrics() || showExceptions() || showDirectAwards()) {
+                  <div
+                    class="nav-settings-group"
+                    role="group"
+                    aria-labelledby="nav-group-oversight"
                   >
+                    <p
+                      id="nav-group-oversight"
+                      class="nav-settings-heading"
+                      i18n="@@nav.groupOversight"
+                    >
+                      Oversight and reports
+                    </p>
+                    @if (showAudit()) {
+                      <a
+                        routerLink="/admin/audit"
+                        [class.is-active]="section() === 'audit'"
+                        [attr.aria-current]="section() === 'audit' ? 'page' : null"
+                        i18n="@@nav.audit"
+                        >Audit log</a
+                      >
+                    }
+                    <!-- CF-012 (B-012-2): the pilot metrics sit under Settings, after the audit log. -->
+                    @if (showPilotMetrics()) {
+                      <a
+                        routerLink="/pilot-metrics"
+                        [class.is-active]="section() === 'pilotMetrics'"
+                        [attr.aria-current]="section() === 'pilotMetrics' ? 'page' : null"
+                        i18n="@@nav.pilotMetrics"
+                        >Pilot metrics</a
+                      >
+                    }
+                    <!-- Phase 1 SI-068 / SI-124: the exceptions register and direct awards follow the pilot metrics. -->
+                    @if (showExceptions()) {
+                      <a
+                        routerLink="/exceptions"
+                        [class.is-active]="section() === 'exceptions'"
+                        [attr.aria-current]="section() === 'exceptions' ? 'page' : null"
+                        i18n="@@nav.exceptions"
+                        >Exceptions</a
+                      >
+                    }
+                    @if (showDirectAwards()) {
+                      <a
+                        routerLink="/direct-awards"
+                        [class.is-active]="section() === 'directAwards'"
+                        [attr.aria-current]="section() === 'directAwards' ? 'page' : null"
+                        i18n="@@nav.directAwards"
+                        >Direct awards</a
+                      >
+                    }
+                  </div>
                 }
-                @if (showApprovalMatrix() || showApprovalRoutes()) {
-                  <a
-                    [routerLink]="
-                      showApprovalMatrix() ? '/approval-matrix' : '/approval-matrix/read'
-                    "
-                    [class.is-active]="section() === 'approvalMatrix'"
-                    [attr.aria-current]="section() === 'approvalMatrix' ? 'page' : null"
-                    i18n="@@nav.approvalMatrix"
-                    >Approval rules</a
-                  >
-                }
-                @if (showAudit()) {
-                  <a
-                    routerLink="/admin/audit"
-                    [class.is-active]="section() === 'audit'"
-                    [attr.aria-current]="section() === 'audit' ? 'page' : null"
-                    i18n="@@nav.audit"
-                    >Audit log</a
-                  >
-                }
-                <!-- CF-012 (B-012-2): the pilot metrics sit under Settings, after the audit log. -->
-                @if (showPilotMetrics()) {
-                  <a
-                    routerLink="/pilot-metrics"
-                    [class.is-active]="section() === 'pilotMetrics'"
-                    [attr.aria-current]="section() === 'pilotMetrics' ? 'page' : null"
-                    i18n="@@nav.pilotMetrics"
-                    >Pilot metrics</a
-                  >
-                }
-                <!-- Phase 1 SI-068 / SI-124: the exceptions register and direct awards follow the pilot metrics. -->
-                @if (showExceptions()) {
-                  <a
-                    routerLink="/exceptions"
-                    [class.is-active]="section() === 'exceptions'"
-                    [attr.aria-current]="section() === 'exceptions' ? 'page' : null"
-                    i18n="@@nav.exceptions"
-                    >Exceptions</a
-                  >
-                }
-                @if (showDirectAwards()) {
-                  <a
-                    routerLink="/direct-awards"
-                    [class.is-active]="section() === 'directAwards'"
-                    [attr.aria-current]="section() === 'directAwards' ? 'page' : null"
-                    i18n="@@nav.directAwards"
-                    >Direct awards</a
-                  >
-                }
-                @if (showCompanyUsers()) {
-                  <a
-                    routerLink="/admin/users"
-                    [class.is-active]="section() === 'users'"
-                    [attr.aria-current]="section() === 'users' ? 'page' : null"
-                    i18n="@@nav.users"
-                    >Company users</a
-                  >
-                }
-                <!-- Phase 1 SI-137: the plan and its commercial footing (read-only), from Settings. -->
-                @if (showCompanyUsers()) {
-                  <a routerLink="/admin/users" fragment="plan-title" i18n="@@nav.plan">Plan</a>
-                }
-                @if (showCompanyEmail()) {
-                  <a
-                    routerLink="/admin/email"
-                    [class.is-active]="section() === 'email'"
-                    [attr.aria-current]="section() === 'email' ? 'page' : null"
-                    i18n="@@nav.companyEmail"
-                    >Email delivery</a
-                  >
-                }
-                @if (showCompanySettings()) {
-                  <a
-                    routerLink="/admin/company"
-                    [class.is-active]="section() === 'company'"
-                    [attr.aria-current]="section() === 'company' ? 'page' : null"
-                    i18n="@@nav.companySettings"
-                    >Company settings</a
-                  >
+                @if (showCompanyUsers() || showCompanyEmail() || showCompanySettings()) {
+                  <div class="nav-settings-group" role="group" aria-labelledby="nav-group-company">
+                    <p
+                      id="nav-group-company"
+                      class="nav-settings-heading"
+                      i18n="@@nav.groupCompany"
+                    >
+                      People and company
+                    </p>
+                    @if (showCompanyUsers()) {
+                      <a
+                        routerLink="/admin/users"
+                        [class.is-active]="section() === 'users'"
+                        [attr.aria-current]="section() === 'users' ? 'page' : null"
+                        i18n="@@nav.users"
+                        >Company users</a
+                      >
+                    }
+                    <!-- Phase 1 SI-137: the plan and its commercial footing (read-only), from Settings. -->
+                    @if (showCompanyUsers()) {
+                      <a routerLink="/admin/users" fragment="plan-title" i18n="@@nav.plan">Plan</a>
+                    }
+                    @if (showCompanyEmail()) {
+                      <a
+                        routerLink="/admin/email"
+                        [class.is-active]="section() === 'email'"
+                        [attr.aria-current]="section() === 'email' ? 'page' : null"
+                        i18n="@@nav.companyEmail"
+                        >Email delivery</a
+                      >
+                    }
+                    @if (showCompanySettings()) {
+                      <a
+                        routerLink="/admin/company"
+                        [class.is-active]="section() === 'company'"
+                        [attr.aria-current]="section() === 'company' ? 'page' : null"
+                        i18n="@@nav.companySettings"
+                        >Company settings</a
+                      >
+                    }
+                  </div>
                 }
               </div>
             </details>
@@ -346,7 +397,5 @@
       </p>
     </app-confirm-dialog>
   }
-  <footer class="shell-footer" i18n="@@shell.footer">
-    Subcontractor Bid + Performance Intelligence
-  </footer>
+  <footer class="shell-footer" i18n="@@shell.footer">Subtriva</footer>
 </div>

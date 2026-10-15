@@ -19,13 +19,13 @@
   @if (award().response; as answer) {
     @if (answer.outcome === 'Accepted') {
       <p class="prj-hint" i18n="@@awardOutcome.answerAccepted">
-        Accepted on <bdi dir="ltr">{{ answer.respondedOn }}</bdi> · evidence
+        Accepted on <bdi>{{ answer.respondedOn | businessDate }}</bdi> · evidence
         <bdi>{{ answer.evidenceReference }}</bdi> · recorded by
         <bdi>{{ answer.recordedByName }}</bdi>
       </p>
     } @else {
       <p class="prj-hint" i18n="@@awardOutcome.answerDeclined">
-        Declined on <bdi dir="ltr">{{ answer.respondedOn }}</bdi> · evidence
+        Declined on <bdi>{{ answer.respondedOn | businessDate }}</bdi> · evidence
         <bdi>{{ answer.evidenceReference }}</bdi> · recorded by
         <bdi>{{ answer.recordedByName }}</bdi>
       </p>

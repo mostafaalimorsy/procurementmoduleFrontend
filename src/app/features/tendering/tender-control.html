@@ -1,3 +1,9 @@
+<!-- Phase 3 SI-058: once awarded, the page leads with the outcome (winner, state, value, closeout) — for readers the server sends
+     it to. The closure notice then follows the award section instead of opening the page. -->
+@if (tender().awardSummary; as summary) {
+  <app-award-summary [summary]="summary" />
+}
+
 @if (tender().status === 'Cancelled') {
   <div class="prj-note" role="note">
     <strong i18n="@@control.cancelledTitle">This tender is cancelled.</strong>
@@ -41,29 +47,39 @@
   </div>
 }
 
-@if (tender().closure; as closure) {
-  @if (tender().status === 'Published') {
-    <div class="prj-note tnd-attention-box" role="note">
-      @if (closure.kind === 'Early') {
-        <strong i18n="@@control.closedEarlyTitle">This tender was closed early.</strong>
-        <p i18n="@@control.closedEarlyBy">
-          Closed by <bdi>{{ closure.closedByName }}</bdi> on <bdi>{{ closedAtShown() }}</bdi
-          >, before its scheduled deadline of <bdi>{{ scheduledShown() }}</bdi
-          >. Reason: <bdi>{{ closure.reason }}</bdi>
+<ng-template #closureNotice>
+  @if (tender().closure; as closure) {
+    @if (tender().status === 'Published') {
+      <div
+        class="prj-note"
+        [class.tnd-attention-box]="!tender().awardSummary"
+        role="note"
+        data-testid="closure-notice"
+      >
+        @if (closure.kind === 'Early') {
+          <strong i18n="@@control.closedEarlyTitle">This tender was closed early.</strong>
+          <p i18n="@@control.closedEarlyBy">
+            Closed by <bdi>{{ closure.closedByName }}</bdi> on <bdi>{{ closedAtShown() }}</bdi
+            >, before its scheduled deadline of <bdi>{{ scheduledShown() }}</bdi
+            >. Reason: <bdi>{{ closure.reason }}</bdi>
+          </p>
+        } @else {
+          <strong i18n="@@control.closedDeadlineTitle">This tender closed at its deadline.</strong>
+          <p i18n="@@control.closedDeadlineBody">
+            Responses stopped at <bdi>{{ closedAtShown() }}</bdi
+            >. Nobody had to close it by hand.
+          </p>
+        }
+        <p class="prj-hint" i18n="@@control.closedHint">
+          No firm can submit or change a bid any more. Submitted bids stay sealed until they are
+          opened for evaluation. Closing a tender does not accept, recommend or award any bidder.
         </p>
-      } @else {
-        <strong i18n="@@control.closedDeadlineTitle">This tender closed at its deadline.</strong>
-        <p i18n="@@control.closedDeadlineBody">
-          Responses stopped at <bdi>{{ closedAtShown() }}</bdi
-          >. Nobody had to close it by hand.
-        </p>
-      }
-      <p class="prj-hint" i18n="@@control.closedHint">
-        No firm can submit or change a bid any more. Submitted bids stay sealed until they are
-        opened for evaluation. Closing a tender does not accept, recommend or award any bidder.
-      </p>
-    </div>
+      </div>
+    }
   }
+</ng-template>
+@if (!tender().awardSummary) {
+  <ng-container [ngTemplateOutlet]="closureNotice" />
 }
 
 @if (evaluationAvailable() && tender().status !== 'Draft') {
@@ -156,6 +172,11 @@
   </section>
 }
 
+<!-- Phase 3 SI-058: after an award, how bidding closed is history — it follows the outcome and the award section. -->
+@if (tender().awardSummary) {
+  <ng-container [ngTemplateOutlet]="closureNotice" />
+}
+
 @if (attention().length) {
   <div class="prj-note tnd-attention-box" role="status">
     <strong i18n="@@control.attentionTitle">Needs attention</strong>
@@ -185,9 +206,12 @@
     <dt i18n="@@tenderField.deadline">Submission deadline</dt>
     <dd>
       <bdi>{{ deadlineShown() }}</bdi>
-      <small class="prj-hint tnd-block">{{
-        tender().submissionDeadline?.utc | businessDate: 'instant'
-      }}</small>
+      <!-- Phase 3 SI-141: the zone is named once; the UTC instant is added only when the tender's zone is not UTC. -->
+      @if (tender().timeZoneId !== 'UTC' && tender().timeZoneId !== 'Etc/UTC') {
+        <small class="prj-hint tnd-block">{{
+          tender().submissionDeadline?.utc | businessDate: 'instant'
+        }}</small>
+      }
     </dd>
   </div>
   <div>
@@ -279,14 +303,17 @@
 <section class="prj-section" aria-labelledby="bids-title">
   <div class="prj-section-head">
     <h2 id="bids-title" i18n="@@control.bidsTitle">Bids received</h2>
-    <button
-      class="prj-btn prj-btn--ghost"
-      type="button"
-      (click)="loadBids(tender().id)"
-      i18n="@@control.bidsRefresh"
-    >
-      Refresh
-    </button>
+    <!-- Phase 3 SI-059: no new bid arrives after the opening, an award or a cancellation — nothing to refresh then. -->
+    @if (biddingLive()) {
+      <button
+        class="prj-btn prj-btn--ghost"
+        type="button"
+        (click)="loadBids(tender().id)"
+        i18n="@@control.bidsRefresh"
+      >
+        Refresh
+      </button>
+    }
   </div>
   @if (bidsError()) {
     <p class="prj-note prj-note--error" role="alert">{{ bidsError() }}</p>

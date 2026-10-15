@@ -5,6 +5,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { SessionService } from '../../core/auth/session.service';
 import { BusinessDatePipe } from '../../core/localization/business-format';
 import { LocaleService } from '../../core/localization/locale.service';
+import { RecordLinks } from '../../shared/navigation/record-links';
 import { money } from '../evaluation/evaluation-format';
 import { AwardBaselineView } from './award-baseline';
 import { AwardOutcome } from './award-outcome';
@@ -12,7 +13,6 @@ import { DecisionWorkspace, DecisionApi, decisionProblemMessage } from './decisi
 import { DecisionApproval } from './decision-approval';
 import { DecisionControlsView } from './decision-controls';
 import {
-  decisionStatusLabel,
   liveStateLabel,
   outcomeLabel,
   decisionStepLabel,
@@ -70,6 +70,8 @@ export class DecisionPage implements OnInit {
   private readonly router = inject(Router);
   private readonly document = inject(DOCUMENT);
   readonly locale = inject(LocaleService).locale;
+  /** Phase 3 SI-066: a candidate's firm links to its profile (plain text for a reader who cannot open it). */
+  readonly links = inject(RecordLinks);
   /** Approvers may follow the decision without reading the evaluation: the evaluation links follow that right. */
   readonly readsEvaluation = inject(SessionService).hasPermission('Evaluation.View');
 
@@ -88,7 +90,6 @@ export class DecisionPage implements OnInit {
       : readinessLabel(view.readiness.state);
   }
   readonly gapLabel = readinessGapLabel;
-  readonly statusLabel = decisionStatusLabel;
   readonly liveStateLabel = liveStateLabel;
   readonly outcomeLabel = outcomeLabel;
   readonly timelineLabel = timelineLabel;

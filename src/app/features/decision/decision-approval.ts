@@ -33,6 +33,7 @@ import {
 import { RequestKeys } from './request-keys';
 import { ShortlistBasisNote } from './shortlist-basis';
 import { CriteriaFlag } from './criteria-flag';
+import { DecisionBrief } from './decision-brief';
 
 type ApprovalDialog = 'Approve' | 'Return' | 'Reject' | 'withdraw' | 'award';
 
@@ -47,6 +48,7 @@ type ApprovalDialog = 'Approve' | 'Return' | 'Reject' | 'withdraw' | 'award';
 @Component({
   selector: 'app-decision-approval',
   imports: [
+    DecisionBrief,
     FormsModule,
     BusinessDatePipe,
     ZonedInstantPipe,

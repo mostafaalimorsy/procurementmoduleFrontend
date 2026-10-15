@@ -70,7 +70,7 @@ export class TenderInvitationPage implements OnInit {
   readonly communications = signal<BidderCommunications | null>(null);
   readonly communicationsError = signal('');
   /** The product delivering the invitation, named exactly as in the email. */
-  readonly systemName = $localize`:@@title.product:Subcontractor Intelligence`;
+  readonly systemName = $localize`:@@title.product:Subtriva`;
   readonly logo = signal<string | null>(null);
   readonly bid = signal<Bid | null>(null);
   readonly mode = signal<'overview' | 'bid'>('overview');

@@ -40,6 +40,7 @@
         <h1>
           <bdi>{{ item.title }}</bdi>
         </h1>
+        <app-saved-notice />
         <p>
           <span class="prj-chip prj-chip--{{ item.status }}">{{ statusLabel(item.status) }}</span>
           <span class="prj-hint" i18n="@@packages.inProject">
@@ -50,6 +51,18 @@
             ({{ statusLabel(item.projectStatus) }})
           </span>
         </p>
+        <!-- Phase 3 SI-058: where the package's procurement stands — its latest tender and that tender's stage. -->
+        @if (item.procurementStage) {
+          <p class="tnd-meta" data-testid="package-procurement">
+            <span i18n="@@packages.procurement">Procurement:</span>
+            <span class="prj-chip">{{ stageLabel(item.procurementStage) }}</span>
+            @if (item.latestTenderId) {
+              <a [routerLink]="links.tender(item.latestTenderId)"
+                ><bdi dir="ltr">{{ item.latestTenderReference }}</bdi></a
+              >
+            }
+          </p>
+        }
       </div>
       <div class="prj-actions">
         <!-- Closed scope, or scope under a closed project, is a record rather than a draft. -->
@@ -133,6 +146,11 @@
         The parent project is {{ statusLabel(item.projectStatus) }}. This unstarted Draft scope
         remains recorded, cannot be activated, and may only be cancelled.
       </p>
+    }
+
+    <!-- Phase 3 SI-058: an awarded package leads with its outcome (for readers the server sends it to). -->
+    @if (item.awardSummary; as summary) {
+      <app-award-summary [summary]="summary" [showTender]="true" />
     }
 
     <div class="prj-layout">

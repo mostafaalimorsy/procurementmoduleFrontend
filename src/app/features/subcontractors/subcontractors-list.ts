@@ -1,8 +1,9 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Observable, Subject, catchError, debounceTime, map, merge, of, switchMap } from 'rxjs';
 import { SessionService } from '../../core/auth/session.service';
+import { listUrlState, oneOfParam, pageParam } from '../../core/navigation/list-url-state';
 import { BusinessDatePipe } from '../../core/localization/business-format';
 import { DirectoryHistoryChip } from '../intelligence/history-chips';
 import { countryName, placeName } from '../../core/localization/countries';
@@ -32,6 +33,8 @@ type Outcome = { readonly page: Paged<SubcontractorSummary> } | { readonly error
 export class SubcontractorsList implements OnInit {
   private readonly api = inject(DirectoryApi);
   private readonly session = inject(SessionService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly url = listUrlState();
   // Typing is debounced; every other trigger (first load, filters, sort, paging, retry) runs at once.
   private readonly typed = new Subject<void>();
   private readonly immediate = new Subject<void>();
@@ -59,6 +62,21 @@ export class SubcontractorsList implements OnInit {
   readonly pageSize = 20;
 
   ngOnInit(): void {
+    // Phase 3 SI-065: the search, filters, sort and page come back from the URL (Back, reload, a shared link).
+    const params = this.route.snapshot?.queryParamMap;
+    if (params) {
+      this.search = params.get('q') ?? '';
+      this.status = oneOfParam(params, 'status', this.statuses);
+      this.tradeId = params.get('trade') ?? '';
+      this.region = params.get('region') ?? '';
+      this.source = oneOfParam(params, 'source', this.sources);
+      const sort = oneOfParam(params, 'sort', ['Code', 'LegalName', 'UpdatedAt'] as const);
+      if (sort) {
+        this.sortBy = sort;
+        this.desc = params.get('desc') === '1';
+      }
+      this.page = pageParam(params);
+    }
     // One request in flight: switchMap drops a superseded search. A failure is caught per request, so
     // the stream survives it and "Try again" still works.
     merge(this.immediate, this.typed.pipe(debounceTime(250)))
@@ -127,13 +145,30 @@ export class SubcontractorsList implements OnInit {
 
   reload(): void {
     this.beginLoad();
+    this.writeUrl();
     this.immediate.next();
   }
 
   searchChanged(): void {
     this.page = 1;
     this.beginLoad();
+    this.writeUrl();
     this.typed.next();
+  }
+
+  /** Phase 3 SI-065: the list's state in its URL, replacing the history entry. */
+  private writeUrl(): void {
+    const sorted = this.sortBy !== 'LegalName' || this.desc;
+    this.url.write({
+      q: this.search.trim(),
+      status: this.status,
+      trade: this.tradeId,
+      region: this.region.trim(),
+      source: this.source,
+      sort: sorted ? this.sortBy : null,
+      desc: sorted ? (this.desc ? '1' : '0') : null,
+      page: this.page,
+    });
   }
 
   location(item: SubcontractorSummary): string {

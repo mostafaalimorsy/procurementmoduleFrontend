@@ -866,3 +866,285 @@ describe('Commercial outcomes follow commercial visibility (CF-073)', () => {
     expect(shown).toContain('5.00 / 5');
   });
 });
+
+describe('Recommendation history strength and outliers (Phase 3 SI-044, SI-045)', () => {
+  const outcome = {
+    awardId: 'a1',
+    versionNumber: 1,
+    tenderReference: 'TND-2026-0017',
+    closedAtUtc: '2026-09-25T09:00:00Z',
+    costVariancePercent: '250.00',
+    scheduleVariancePercent: '0.00',
+    qualityRating: 4,
+    hseRating: 4,
+    variationCount: 0,
+    claimCount: 0,
+    disputeCount: 0,
+    wouldWorkAgain: 'Yes',
+    outcomeScore: '70.00',
+    outcomeType: 'Completed',
+  };
+  const history = (outcomes: (typeof outcome)[]) => ({
+    score: '70',
+    sampleSize: outcomes.length,
+    earliestOutcomeAtUtc: null,
+    latestOutcomeAtUtc: '2026-09-25T09:00:00Z',
+    category: 'Mechanical',
+    scoreRule: 'performance-outcome-v3',
+    outcomes,
+  });
+
+  it('names the strength beside the sample, says a small sample is weighed in full, and flags a project past the score range', () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const view = TestBed.createComponent(HistoryEvidence);
+    view.componentRef.setInput(
+      'history',
+      history([outcome, { ...outcome, awardId: 'a2', costVariancePercent: '19.99' }]),
+    );
+    view.componentRef.setInput('applied', true);
+    view.detectChanges();
+    const element = view.nativeElement as HTMLElement;
+    expect(text(element.querySelector('[data-testid="evidence-strength"]')!)).toBe(
+      'Limited evidence',
+    );
+    expect(element.querySelector('[data-testid="small-sample"]')).not.toBeNull();
+    // +250 % is flagged; +19.99 % is still inside the range the score distinguishes.
+    expect(element.querySelectorAll('[data-testid="outlier"]').length).toBe(1);
+  });
+
+  it('flags a +40 % delay too, and does not call a moderate sample small', () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const view = TestBed.createComponent(HistoryEvidence);
+    const calm = { ...outcome, costVariancePercent: '0.00' };
+    view.componentRef.setInput(
+      'history',
+      history([
+        calm,
+        { ...calm, awardId: 'a2', scheduleVariancePercent: '40.00' },
+        { ...calm, awardId: 'a3' },
+      ]),
+    );
+    view.componentRef.setInput('applied', true);
+    view.detectChanges();
+    const element = view.nativeElement as HTMLElement;
+    expect(text(element.querySelector('[data-testid="evidence-strength"]')!)).toBe(
+      'Moderate evidence',
+    );
+    expect(element.querySelector('[data-testid="small-sample"]')).toBeNull();
+    expect(element.querySelectorAll('[data-testid="outlier"]').length).toBe(1);
+  });
+});
+
+describe('Recommendation history rows (Phase 3 SI-114, SI-046)', () => {
+  it("shows each project's rule-v3 score and does not compare a project that ended early", () => {
+    TestBed.configureTestingModule({ providers: [provideRouter([])] });
+    const view = TestBed.createComponent(HistoryEvidence);
+    const outcome = {
+      awardId: 'a1',
+      versionNumber: 1,
+      tenderReference: 'TND-2026-0007',
+      closedAtUtc: '2026-09-25T09:00:00Z',
+      costVariancePercent: '11.00',
+      scheduleVariancePercent: '20.00',
+      qualityRating: 5,
+      hseRating: 4,
+      variationCount: 7,
+      claimCount: 1,
+      disputeCount: 0,
+      wouldWorkAgain: 'Yes',
+      outcomeScore: '89.68',
+      outcomeScoreV3: '91.36',
+    };
+    view.componentRef.setInput('history', {
+      score: '67',
+      sampleSize: 2,
+      earliestOutcomeAtUtc: '2026-08-25T09:00:00Z',
+      latestOutcomeAtUtc: '2026-09-25T09:00:00Z',
+      category: 'Mechanical',
+      scoreRule: 'performance-outcome-v3',
+      outcomes: [
+        outcome,
+        {
+          ...outcome,
+          awardId: 'a2',
+          tenderReference: 'TND-2026-0012',
+          outcomeType: 'TerminatedForDefault',
+          percentComplete: 40,
+          costVariancePercent: '-60.00',
+          scheduleVariancePercent: '-50.00',
+          outcomeScoreV3: '15.00',
+        },
+      ],
+    });
+    view.componentRef.setInput('applied', true);
+    view.detectChanges();
+    const rows = [...(view.nativeElement as HTMLElement).querySelectorAll('li')];
+    expect(text(rows[0])).toContain('cost +11.00 %');
+    expect(text(rows[0])).toContain('project score 91.36 / 100 (rule v3)');
+    expect(text(rows[1])).toContain('Terminated for default');
+    expect(text(rows[1])).toContain('not compared — ended early at 40 %');
+    expect(text(rows[1])).not.toContain('−60.00');
+    expect(text(rows[1])).toContain('quality 5/5');
+    expect(text(rows[1])).toContain('project score 15.00 / 100');
+  });
+});
+
+const ALL_FEATURES = [
+  'tendering',
+  'projects',
+  'subcontractor_directory',
+  'sourcing',
+  ...PERFORMANCE_FEATURES,
+];
+const READS_EVERYTHING = [
+  'Performance.View',
+  'Tenders.View',
+  'WorkPackages.View',
+  'Projects.View',
+  'Subcontractors.View',
+];
+
+function entitle(features: readonly string[]): void {
+  (
+    TestBed.inject(EntitlementsService) as unknown as {
+      current: { set: (value: readonly string[]) => void };
+    }
+  ).current.set(features);
+}
+
+describe('A closeout for an award not in force (Phase 3 SI-060)', () => {
+  it('says the award was withdrawn and offers no step to record a closeout', async () => {
+    const { element } = await render({
+      ...pendingCloseout(),
+      awardState: 'Withdrawn',
+      closeoutAllowed: false,
+    });
+    const note = element.querySelector('[data-testid="closeout-not-applicable"]')!;
+    expect(text(note)).toContain('Closeout not applicable');
+    expect(text(note)).toContain('This award was withdrawn — no closeout is recorded for it.');
+    expect(element.querySelector('[role="tablist"]')).toBeNull();
+    const panel = element.querySelector('[role="tabpanel"]') as HTMLElement;
+    expect(panel.hidden).toBe(true);
+    expect(panel.querySelector('section, form, input')).toBeNull();
+    expect(text(element)).not.toContain('required items');
+  });
+
+  it('names a declined award and an award still awaiting its answer', async () => {
+    let { element } = await render({
+      ...pendingCloseout(),
+      awardState: 'Declined',
+      closeoutAllowed: false,
+    });
+    expect(text(element)).toContain('The subcontractor declined this award');
+    TestBed.resetTestingModule();
+    ({ element } = await render({
+      ...pendingCloseout(),
+      awardState: 'AwaitingResponse',
+      closeoutAllowed: false,
+    }));
+    expect(text(element)).toContain('the closeout starts once the award is accepted');
+  });
+
+  it('keeps what was recorded readable when the award ended afterwards', async () => {
+    const { element } = await render({
+      ...recordedCloseout({ ...PM_ACCESS, editExecution: false, editCommercial: false }),
+      awardState: 'Withdrawn',
+      closeoutAllowed: false,
+    });
+    expect(text(element)).toContain('the closeout can no longer be changed');
+    expect(element.querySelector('[role="tablist"]')).not.toBeNull();
+  });
+
+  it('changes nothing for an award in force', async () => {
+    const { element } = await render({
+      ...pendingCloseout(),
+      awardState: 'Accepted',
+      closeoutAllowed: true,
+    });
+    expect(element.querySelector('[data-testid="closeout-not-applicable"]')).toBeNull();
+    expect(element.querySelector('[role="tablist"]')).not.toBeNull();
+  });
+});
+
+describe('Closeouts link back up the chain (Phase 3 SI-066)', () => {
+  it('links the tender, project, work package and firm for a reader who can open them', async () => {
+    const http = configure(null, READS_EVERYTHING);
+    entitle(ALL_FEATURES);
+    const page = TestBed.createComponent(CloseoutPage);
+    page.detectChanges();
+    const view = pendingCloseout();
+    http
+      .expectOne('/api/v1/performance/closeouts/a1')
+      .flush({ ...view, baseline: { ...view.baseline, projectId: 'p1' } });
+    page.detectChanges();
+    const element = page.nativeElement as HTMLElement;
+    const href = (id: string) =>
+      element.querySelector(`[data-testid="${id}"]`)?.getAttribute('href') ?? null;
+    expect(href('closeout-tender-link')).toBe('/tenders/t1');
+    expect(href('closeout-project-link')).toBe('/projects/p1');
+    expect(href('closeout-package-link')).toBe('/work-packages/w1');
+    expect(href('closeout-firm-link')).toBe('/subcontractors/s1');
+  });
+
+  it('leaves codes as text for a reader who cannot open those pages', async () => {
+    const { element } = await render(pendingCloseout());
+    for (const id of [
+      'closeout-tender-link',
+      'closeout-project-link',
+      'closeout-package-link',
+      'closeout-firm-link',
+    ])
+      expect(element.querySelector(`[data-testid="${id}"]`)?.hasAttribute('href')).toBe(false);
+    expect(text(element)).toContain('TND-2026-0007');
+  });
+
+  it('links each closeouts card to its tender, project, work package and firm profile', () => {
+    const http = configure(null, READS_EVERYTHING);
+    entitle(ALL_FEATURES);
+    const list = TestBed.createComponent(CloseoutsList);
+    list.detectChanges();
+    http
+      .expectOne((request) => request.url === '/api/v1/performance/closeouts')
+      .flush({
+        items: [
+          {
+            awardId: 'a1',
+            tenderId: 't1',
+            workPackageId: 'w1',
+            projectId: 'p1',
+            tenderReference: 'TND-2026-0007',
+            projectCode: 'P-100',
+            workPackageCode: 'WP-HVAC',
+            workPackageTitle: 'HVAC supply and install',
+            category: null,
+            subcontractorId: 's1',
+            subcontractorCode: 'ACME-01',
+            subcontractorName: 'ACME Contracting',
+            awardedAtUtc: '2026-03-01T09:00:00Z',
+            awardValue: '500000.00',
+            currency: 'QAR',
+            lifecycle: 'Pending',
+            recorded: 0,
+            required: 9,
+            closedAtUtc: null,
+            updatedAtUtc: null,
+          },
+        ],
+        page: 1,
+        pageSize: 24,
+        totalCount: 1,
+        totalPages: 1,
+      });
+    list.detectChanges();
+    const hrefs = [
+      ...(list.nativeElement as HTMLElement).querySelectorAll('.prj-card a[href]'),
+    ].map((link) => link.getAttribute('href'));
+    expect(hrefs).toEqual([
+      '/subcontractors/s1',
+      '/closeouts/a1',
+      '/tenders/t1',
+      '/projects/p1',
+      '/work-packages/w1',
+    ]);
+  });
+});

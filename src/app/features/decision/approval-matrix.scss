@@ -7,3 +7,30 @@
   gap: 0 1rem;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
 }
+
+// Phase 3 SI-122: the value ruler — one row per band, a gap marked in words and with a border, never colour alone.
+.mx-ruler {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0.5rem 0 1rem;
+  padding: 0;
+  list-style: none;
+}
+
+.mx-ruler li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--color-border);
+  border-inline-start: 4px solid var(--color-accent);
+}
+
+.mx-ruler li.mx-gap {
+  border-inline-start-color: var(--color-warning);
+}
+
+.mx-range {
+  min-inline-size: min(100%, 18rem);
+  color: var(--color-muted);
+}

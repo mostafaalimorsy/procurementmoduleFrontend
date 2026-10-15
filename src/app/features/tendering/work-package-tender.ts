@@ -22,6 +22,7 @@ import {
   tenderProblemMessage,
   isTerminalTender,
 } from './tendering.api';
+import { savedState } from '../../core/a11y/saved-notice';
 
 /**
  * The work package's tender at a glance, or — once its shortlist is approved — the way to create one. Shown to
@@ -308,7 +309,7 @@ export class WorkPackageTender {
     this.creating.set(true);
     this.error.set('');
     request.subscribe({
-      next: (tender) => void this.router.navigate(['/tenders', tender.id]),
+      next: (tender) => void this.router.navigate(['/tenders', tender.id], savedState('created')),
       error: (error: unknown) => {
         this.creating.set(false);
         this.error.set(tenderProblemMessage(error));

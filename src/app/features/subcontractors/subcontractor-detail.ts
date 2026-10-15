@@ -28,6 +28,7 @@ import {
   sourceLabel,
   statusLabel,
 } from './subcontractors.api';
+import { SavedNotice } from '../../core/a11y/saved-notice';
 
 /** A lifecycle move as the user sees it: what it is called and what it means. */
 interface StatusAction {
@@ -44,6 +45,7 @@ interface StatusAction {
 @Component({
   selector: 'app-subcontractor-detail',
   imports: [
+    SavedNotice,
     FormsModule,
     RouterLink,
     BusinessDatePipe,

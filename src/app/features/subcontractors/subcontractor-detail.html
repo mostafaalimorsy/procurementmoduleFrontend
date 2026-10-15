@@ -34,6 +34,7 @@
         <h1>
           <bdi>{{ item.legalName }}</bdi>
         </h1>
+        <app-saved-notice />
         <p>
           <span class="prj-chip prj-chip--{{ item.status }}">{{ statusLabel(item.status) }}</span>
           @if (item.tradingName) {
@@ -156,6 +157,22 @@
           </dl>
         </section>
 
+        <!-- Phase 3 SI-024: the firm's delivery evidence (one set of numbers) right after its overview, then compliance
+             and trades; contacts and notes sit in the side column. -->
+        @if (showIntelligence()) {
+          <app-subcontractor-intelligence
+            [subcontractorId]="item.id"
+            [workPackageId]="workPackageId"
+            [initialCategory]="category"
+            (loaded)="summary.set($event)"
+          />
+        } @else if (showPerformance()) {
+          <!-- CF-014: one delivery section — the intelligence one when the plan has it, otherwise the project performance history. -->
+          <app-subcontractor-performance [subcontractorId]="item.id" />
+        }
+
+        <app-subcontractor-compliance [subcontractorId]="item.id" />
+
         <section class="prj-section" aria-labelledby="trades-title">
           <h2 id="trades-title" i18n="@@directoryField.trades">Trades</h2>
           @if (item.trades.length) {
@@ -174,14 +191,18 @@
             <p class="prj-hint" i18n="@@directory.noTrades">No trades recorded yet.</p>
           }
         </section>
-
-        <app-subcontractor-compliance [subcontractorId]="item.id" />
-
+      </div>
+      <aside
+        class="sub-side"
+        aria-label="Contacts and notes"
+        i18n-aria-label="@@directory.sideLabel"
+      >
         <section class="prj-section" aria-labelledby="contacts-title">
           <h2 id="contacts-title" i18n="@@directory.contacts">Contacts</h2>
           @if (item.contacts.length) {
-            <div class="prj-table-wrap">
-              <table class="prj-table">
+            <!-- Phase 3 SI-024: in the side column the contacts read as cards at every width (no sideways scrolling). -->
+            <div class="prj-table-wrap" role="region" aria-labelledby="contacts-title" tabindex="0">
+              <table class="prj-table prj-table--cards">
                 <caption class="prj-visually-hidden" i18n="@@directory.contactsCaption">
                   Contacts at this subcontractor
                 </caption>
@@ -213,13 +234,13 @@
                           >
                         }
                       </td>
-                      <td>
+                      <td data-label="Job title" i18n-data-label="@@directoryField.contactJobTitle">
                         <bdi>{{ contact.jobTitle || '—' }}</bdi>
                       </td>
-                      <td>
+                      <td data-label="Email" i18n-data-label="@@directory.email">
                         <bdi dir="ltr">{{ contact.email || '—' }}</bdi>
                       </td>
-                      <td>
+                      <td data-label="Phone" i18n-data-label="@@directory.phone">
                         <bdi dir="ltr">{{ contact.phone || '—' }}</bdi>
                       </td>
                       @if (canManageData()) {
@@ -278,19 +299,7 @@
             <p class="prj-hint" i18n="@@directory.noNotes">No notes yet.</p>
           }
         </section>
-
-        @if (showIntelligence()) {
-          <app-subcontractor-intelligence
-            [subcontractorId]="item.id"
-            [workPackageId]="workPackageId"
-            [initialCategory]="category"
-            (loaded)="summary.set($event)"
-          />
-        } @else if (showPerformance()) {
-          <!-- CF-014: one delivery section — the intelligence one when the plan has it, otherwise the project performance history. -->
-          <app-subcontractor-performance [subcontractorId]="item.id" />
-        }
-      </div>
+      </aside>
     </div>
 
     @if (pending(); as action) {

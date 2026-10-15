@@ -98,6 +98,24 @@ describe('Decision and award pack (CF-003)', () => {
     });
   }
 
+  it('names the approver role and keeps the fingerprints in a closing verification appendix (Phase 3 SI-121)', () => {
+    const element = render('Awarded');
+    const trail = [...element.querySelectorAll('.pack-table')].find(
+      (table) => text(table).includes('Approval trail') || text(table).includes('Step'),
+    )!;
+    expect(text(element)).not.toContain('ApproverDirector');
+    expect(text(element)).toContain('Approver / Director');
+    expect(trail).toBeTruthy();
+    const verification = element.querySelector('#pack-verification')!.closest('section')!;
+    expect(text(verification)).toContain('a'.repeat(64));
+    expect(text(verification)).toContain('c'.repeat(64));
+    expect(text(element.querySelector('.pack-header')!)).not.toContain('a'.repeat(64));
+    const award = element.querySelector('#pack-award')!.closest('section')!;
+    expect(
+      award.compareDocumentPosition(verification) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it('keeps references, revisions and fingerprints left-to-right inside the page', () => {
     const element = render('Awarded');
     const ltr = [...element.querySelectorAll('bdi[dir="ltr"]')].map((node) => text(node));

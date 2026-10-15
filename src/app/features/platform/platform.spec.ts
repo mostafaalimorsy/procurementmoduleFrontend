@@ -196,6 +196,9 @@ describe('Platform forms', () => {
             packages: () => of([]),
             companyUsage: () => of(null),
             accessCapabilities: () => of({ clientAddress: true, location: true }),
+            // Phase 3 SI-159: the Access tab also shows the first admin and admin recovery.
+            adminRecoveries: () => of([]),
+            residencyPolicies: () => of({ deploymentRegion: 'local', policies: [] }),
             policy,
           },
         },
@@ -273,6 +276,9 @@ describe('Company access policy capability (ADR-176)', () => {
             packages: () => of([]),
             companyUsage: () => of(null),
             accessCapabilities: () => of({ clientAddress: false, location: false }),
+            // Phase 3 SI-159: the Access tab also shows the first admin and admin recovery.
+            adminRecoveries: () => of([]),
+            residencyPolicies: () => of({ deploymentRegion: 'local', policies: [] }),
             policy,
           },
         },

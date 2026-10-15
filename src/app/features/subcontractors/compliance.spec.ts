@@ -108,6 +108,8 @@ describe('Compliance (CF-056)', () => {
     fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
     const content = text(element);
+    // Phase 3 SI-024: the record form opens on request, not standing open above the firm's evidence.
+    expect((element.querySelector('details.cmp-record') as HTMLDetailsElement).open).toBe(false);
     expect(content).toContain(
       'Blocked in the directory: no approved-vendor status overrides a block.',
     );

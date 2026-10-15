@@ -24,7 +24,7 @@ import {
 } from './features/intelligence/intelligence.api';
 import { COMPANY_PROFILE_PERMISSION } from './features/company/company.api';
 
-const product = $localize`:@@title.product:Subcontractor Intelligence`;
+const product = $localize`:@@title.product:Subtriva`;
 const consoleName = $localize`:@@title.console:Platform Console`;
 
 /**
@@ -98,6 +98,14 @@ export const routes: Routes = [
             title: $localize`:@@title.companyAccess:Access policy | ${consoleName}:console:`,
             loadComponent: () =>
               import('./features/platform/company-access').then((m) => m.CompanyAccess),
+          },
+          // Phase 3 SI-159: residency, data reuse and deletion on a tab of their own.
+          {
+            path: 'data',
+            title: $localize`:@@title.companyData:Data | ${consoleName}:console:`,
+            data: { section: 'data' },
+            loadComponent: () =>
+              import('./features/platform/company-overview').then((m) => m.CompanyOverview),
           },
         ],
       },
@@ -462,7 +470,7 @@ export const routes: Routes = [
         path: 'approval-matrix',
         canActivate: [featureGuard],
         data: { permission: DECISION_PERMISSIONS.manageMatrix, feature: AWARD_FEATURES },
-        title: $localize`:@@title.approvalMatrix:Approval matrix | ${product}:product:`,
+        title: $localize`:@@title.approvalRules:Approval rules | ${product}:product:`,
         loadComponent: () =>
           import('./features/decision/approval-matrix').then((m) => m.ApprovalMatrixPage),
       },
@@ -478,7 +486,7 @@ export const routes: Routes = [
           ],
           feature: AWARD_FEATURES,
         },
-        title: $localize`:@@title.approvalMatrixRead:Approval routes | ${product}:product:`,
+        title: $localize`:@@title.approvalRules:Approval rules | ${product}:product:`,
         loadComponent: () =>
           import('./features/decision/approval-matrix-read').then((m) => m.ApprovalMatrixRead),
       },

@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { Subject, debounceTime, merge, switchMap } from 'rxjs';
 import { SessionService } from '../../core/auth/session.service';
+import { listUrlState, oneOfParam, pageParam } from '../../core/navigation/list-url-state';
 import {
   PROJECT_PERMISSIONS,
   PROJECT_STATUSES,
@@ -16,6 +17,8 @@ import {
   projectStatusLabel,
 } from './projects.api';
 
+const SORT_FIELDS = ['Code', 'Name', 'Status', 'StartDate', 'UpdatedAt'] as const;
+
 @Component({
   selector: 'app-projects-list',
   imports: [FormsModule, RouterLink, BusinessDatePipe, BusinessNumberPipe],
@@ -25,6 +28,7 @@ export class ProjectsList implements OnInit {
   private readonly api = inject(ProjectsApi);
   private readonly session = inject(SessionService);
   private readonly route = inject(ActivatedRoute);
+  private readonly url = listUrlState();
   // Typing is debounced so a search does not fire per keystroke; every other trigger - first load,
   // filter, sort, paging, retry - runs at once, because making a user wait 250ms to see their own
   // portfolio would be a self-inflicted delay.
@@ -63,11 +67,25 @@ export class ProjectsList implements OnInit {
   }
 
   ngOnInit(): void {
-    // Part 12: a dashboard link may open the list already filtered.
-    const status = this.route.snapshot?.queryParamMap?.get('status') ?? null;
+    // Part 12: a dashboard link may open the list already filtered. Phase 3 SI-065: the search, filters, sort and page come back
+    // from the URL (Back, reload, a shared link); an explicit "mine" in the URL wins over the Project Manager default.
+    const params = this.route.snapshot?.queryParamMap;
+    const status = params?.get('status') ?? null;
     if (this.statuses.includes(status as ProjectStatus)) this.status = status as ProjectStatus;
-    this.mine = this.isProjectManager();
-    this.mineDefaulted = this.session.identity() !== null;
+    this.search = params?.get('q') ?? '';
+    const sort = params ? oneOfParam(params, 'sort', SORT_FIELDS) : '';
+    if (sort) {
+      this.sortBy = sort;
+      this.desc = params?.get('desc') === '1';
+    }
+    this.page = params ? pageParam(params) : 1;
+    if (params?.has('mine')) {
+      this.mine = params.get('mine') === '1';
+      this.mineDefaulted = true;
+    } else {
+      this.mine = this.isProjectManager();
+      this.mineDefaulted = this.session.identity() !== null;
+    }
     // One in-flight request at a time: switchMap drops a superseded search so a slow early response
     // can never overwrite the results of a later keystroke.
     merge(this.immediate, this.typed.pipe(debounceTime(250)))
@@ -134,6 +152,7 @@ export class ProjectsList implements OnInit {
   /** Re-runs the current query at once. */
   reload(): void {
     this.beginLoad();
+    this.writeUrl();
     this.immediate.next();
   }
 
@@ -141,7 +160,21 @@ export class ProjectsList implements OnInit {
   searchChanged(): void {
     this.page = 1;
     this.beginLoad();
+    this.writeUrl();
     this.typed.next();
+  }
+
+  /** Phase 3 SI-065: the list's state in its URL, replacing the history entry. */
+  private writeUrl(): void {
+    const sorted = this.sortBy !== 'UpdatedAt' || !this.desc;
+    this.url.write({
+      q: this.search.trim(),
+      status: this.status,
+      mine: this.isProjectManager() || this.mine ? (this.mine ? '1' : '0') : null,
+      sort: sorted ? this.sortBy : null,
+      desc: sorted ? (this.desc ? '1' : '0') : null,
+      page: this.page,
+    });
   }
 
   private beginLoad(): void {

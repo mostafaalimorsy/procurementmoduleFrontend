@@ -12,6 +12,7 @@ import {
   RetrospectivePage,
   RetrospectiveStatus,
 } from './retrospective.api';
+import { listUrlState, oneOfParam, pageParam } from '../../core/navigation/list-url-state';
 
 /**
  * CF-002 (ADR-126): the company's retrospective outcomes — past work recorded from documents so history exists before the first closeout.
@@ -139,6 +140,9 @@ import {
 export class RetrospectiveList implements OnInit {
   private readonly api = inject(RetrospectiveApi);
   private readonly session = inject(SessionService);
+  private readonly url = listUrlState();
+  /** The list state on screen (its URL key), so a URL that already says so does not load it twice. */
+  private shown = '';
   readonly statuses = RETROSPECTIVE_STATUSES;
   readonly statusLabel = retrospectiveStatusLabel;
   readonly badge = retrospectiveBadge();
@@ -149,7 +153,16 @@ export class RetrospectiveList implements OnInit {
   page = 1;
 
   ngOnInit(): void {
-    this.load();
+    // Phase 3 SI-065: the status, search and page live in the URL (Back, reload, a shared link).
+    this.url.watch((params) => {
+      this.status = oneOfParam(params, 'status', this.statuses);
+      this.search = params.get('q') ?? '';
+      this.page = pageParam(params);
+      const shown = this.url.key({ status: this.status, q: this.search.trim(), page: this.page });
+      if (shown === this.shown) return;
+      this.shown = shown;
+      this.load();
+    });
   }
 
   /** Either section owner records a past outcome; an import is the commercial owner's (it carries the money). */
@@ -166,11 +179,18 @@ export class RetrospectiveList implements OnInit {
 
   applyFilter(): void {
     this.page = 1;
-    this.load();
+    this.sync();
   }
 
   goToPage(page: number): void {
     this.page = page;
+    this.sync();
+  }
+
+  private sync(): void {
+    const values = { status: this.status, q: this.search.trim(), page: this.page };
+    this.url.write(values);
+    this.shown = this.url.key(values);
     this.load();
   }
 

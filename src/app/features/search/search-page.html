@@ -53,7 +53,32 @@
         </p>
       </div>
     } @else {
-      @for (group of view.groups; track group.type) {
+      <!-- Phase 3 SI-133: an exact reference first, as one object with each of its records. -->
+      @if (exact(view); as hits) {
+        @if (hits.length) {
+          <section
+            class="srch-exact prj-card"
+            aria-labelledby="search-exact"
+            data-testid="search-exact"
+          >
+            <h2 id="search-exact">
+              <bdi dir="ltr" class="srch-code">{{ hits[0].code }}</bdi>
+              <bdi>{{ hits[0].title }}</bdi>
+            </h2>
+            <ul class="srch-list" role="list">
+              @for (hit of hits; track hit.type + hit.id) {
+                <li>
+                  <a [routerLink]="link(hit)">{{ typeLabel(hit.type) }}</a>
+                  @if (hit.status) {
+                    <span class="prj-chip">{{ statusLabel(hit.type, hit.status) }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          </section>
+        }
+      }
+      @for (group of ordered(view); track group.type) {
         <section class="srch-group" [attr.aria-labelledby]="'search-group-' + group.type">
           <h2 [id]="'search-group-' + group.type">
             {{ typeLabel(group.type) }}
@@ -130,6 +155,11 @@
             </nav>
           }
         </section>
+      }
+      @if (empty(view); as names) {
+        <p class="prj-hint" data-testid="search-empty-types" i18n="@@search.noMatchIn">
+          No match in: {{ names }}.
+        </p>
       }
     }
   } @else if (!error()) {

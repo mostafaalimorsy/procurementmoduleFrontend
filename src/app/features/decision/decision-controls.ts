@@ -29,6 +29,32 @@ export class DecisionControlsView {
 
   readonly controls = computed(() => this.workspace().controls);
   readonly basis = computed(() => this.controls()?.candidates[0]?.validityBasis ?? null);
+  /**
+   * Phase 3 SI-053: how many of these facts need attention (limited competition, over budget, a changed or missing estimate, a
+   * bid not in good standing, lapsing or lapsed, or missing an award-blocking document). With none the section folds to one
+   * line ("all checks pass") so the decision itself leads; with any it opens and says how many.
+   */
+  readonly attention = computed(() => {
+    const c = this.controls();
+    if (!c) return 0;
+    let count = [
+      c.limitedCompetition,
+      c.proposedOverBudget === true,
+      c.estimateChangedAfterPublication,
+      c.estimateMissing === true,
+    ].filter(Boolean).length;
+    for (const row of c.candidates) {
+      if (row.standing !== 'Active') count++;
+      if (row.validityState === 'Lapsed' || row.validityState === 'LapsingSoon') count++;
+      if (
+        (row.compliance ?? []).some(
+          (item) => item.awardBlocking && (item.state === 'Expired' || item.state === 'Missing'),
+        )
+      )
+        count++;
+    }
+    return count;
+  });
   /** Red-team B7 (CF-037 AC4): the estimate is in another currency than the bids — shown, never compared or converted. */
   readonly notComparable = computed(() => this.controls()?.estimateComparable === false);
 

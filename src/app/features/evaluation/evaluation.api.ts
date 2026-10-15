@@ -267,6 +267,27 @@ export interface BidProgress {
   readonly scoreSpread?: string | null;
   readonly divergent?: boolean;
   readonly moderated?: boolean;
+  /** Phase 3 SI-041: the current submitted scorecards the bid needs (the panel minimum); null before the evaluation starts. */
+  readonly requiredScorecards?: number | null;
+}
+
+/**
+ * Phase 3 SI-041 (ADR-106, CF-043): the commercial column of the evaluation's per-firm summary — each opened bid's submitted and leveled
+ * totals, as the commercial leveling shows them. Evaluation.ViewCommercial only (the server answers 403 to anyone else).
+ */
+export interface EvaluationCommercialSummary {
+  readonly tenderId: string;
+  readonly currency: string;
+  readonly levelingCompleted: boolean;
+  readonly bids: readonly EvaluationCommercialSummaryBid[];
+}
+
+export interface EvaluationCommercialSummaryBid {
+  readonly openingBidId: string;
+  readonly currency: string;
+  readonly currencyMismatch: boolean;
+  readonly submittedTotal: string;
+  readonly leveledTotal: string;
 }
 
 export interface PolicyOption {
@@ -789,6 +810,13 @@ export class EvaluationApi {
     return this.http.post<EvaluationOverview>(`${this.tender(tenderId)}/evaluation/refresh`, {
       version,
     });
+  }
+
+  /** Phase 3 SI-041: the leveled totals per bid for the per-firm summary — commercial readers only (403 otherwise). */
+  commercialSummary(tenderId: string): Observable<EvaluationCommercialSummary> {
+    return this.http.get<EvaluationCommercialSummary>(
+      `${this.tender(tenderId)}/evaluation/commercial/summary`,
+    );
   }
 
   technical(tenderId: string): Observable<TechnicalWorkspace> {

@@ -154,6 +154,8 @@ export interface AwardIntelligence {
   /** CF-046 (ADR-110): awards to the firm it declined, and awards the buyer withdrew — never counted as awards. */
   readonly awardsDeclined?: number | null;
   readonly awardsWithdrawn?: number | null;
+  /** Phase 3 SI-048 (ADR-110, ADR-184): opened tenders closed without an award in force — no longer counted as awaiting a decision. */
+  readonly closedWithoutAward?: number;
 }
 
 export interface CompetitiveTender {
@@ -227,6 +229,8 @@ export interface DeliveryOutcome {
   readonly variationSharePercent?: string | null;
   readonly residualCostVariance?: string | null;
   readonly residualCostVariancePercent?: string | null;
+  /** Phase 3 SI-114 (ADR-124): how far a subcontract that did not complete got (0–100); null where the closeout did not record it. */
+  readonly percentComplete?: number | null;
 }
 
 export interface DeliveryIntelligence {
@@ -257,6 +261,12 @@ export interface DeliveryIntelligence {
   /** CF-048: finalized closeouts per outcome type, and how many were left out of on-time and variance figures. */
   readonly outcomeTypes?: Readonly<Record<string, number>> | null;
   readonly excludedFromVariance?: number;
+  /**
+   * Phase 3 SI-046 (ADR-127): the same history under rule v3 — the composite a recommendation's partial history rule weighs — beside
+   * outcomeScore (the stored v1/v2 scores' mean). Commercial and sample-gated like outcomeScore; null when not shown.
+   */
+  readonly outcomeScoreV3?: string | null;
+  readonly outcomeScoreV3Rule?: string;
 }
 
 export interface SimilarProject {
@@ -283,6 +293,8 @@ export interface ParticipationItem {
   readonly issuedAtUtc: string;
   readonly outcome: ParticipationOutcome;
   readonly awardedToFirm: boolean;
+  /** Phase 3 SI-048: the tender was closed without an award in force, so it awaits no decision. */
+  readonly tenderClosedWithoutAward?: boolean;
 }
 
 export interface SubcontractorIntelligence {
@@ -380,6 +392,10 @@ export interface DashboardItem {
   readonly reference: string;
   readonly title: string | null;
   readonly detail: string | null;
+  /**
+   * The item's state; Phase 3 SI-129 (ADR-110): on a recent award, where the award stands now (NotRecorded, AwaitingResponse, Accepted,
+   * Declined, WithdrawalPending, Withdrawn).
+   */
   readonly status: string | null;
   readonly atUtc: string | null;
 }

@@ -3,6 +3,7 @@ import { lifecycleStatusLabel } from '../../core/localization/labels';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
+import type { AwardOutcomeSummary } from '../tendering/tendering.api';
 
 export const PROJECT_PERMISSIONS = {
   view: 'Projects.View',
@@ -117,6 +118,16 @@ export interface WorkPackageSummary {
   /** CF-027 (ADR-089): the catalogue trade the category is; null with a category is legacy free text. */
   readonly tradeId: string | null;
   readonly tradeCode: string | null;
+  /**
+   * Phase 3 SI-058: the package's procurement roll-up — its latest tender and that tender's stage (Draft, OpenForBids, AwaitingOpening,
+   * Opened, Awarded, Cancelled, ClosedForRetender; null: never tendered) — and the value of its award in force (commercial: null unless
+   * the reader sees commercial outcomes, and when no award is in force).
+   */
+  readonly procurementStage?: string | null;
+  readonly latestTenderId?: string | null;
+  readonly latestTenderReference?: string | null;
+  readonly awardedValue?: string | null;
+  readonly awardedCurrency?: string | null;
 }
 
 /** CF-037: one value the estimate has held (append-only). Revision 0 is the value carried over when history began. */
@@ -147,6 +158,8 @@ export interface WorkPackageDetail extends WorkPackageSummary {
   readonly estimateReasonRequired: boolean;
   /** Newest first; empty for readers who may not see the estimate. */
   readonly estimateRevisions: readonly WorkPackageEstimateRevision[];
+  /** Phase 3 SI-058: the package's latest award, as the tender page shows it (null: not a reader of it, or never awarded). */
+  readonly awardSummary?: AwardOutcomeSummary | null;
 }
 
 export interface Paged<T> {

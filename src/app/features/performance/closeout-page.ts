@@ -10,6 +10,7 @@ import { roleList } from '../../core/localization/labels';
 import { LocaleService } from '../../core/localization/locale.service';
 import { parseMoney } from '../../core/localization/money';
 import { ConfirmDialog } from '../../shared/ui/confirm-dialog';
+import { RecordLinks } from '../../shared/navigation/record-links';
 import { CloseoutReadonly } from './closeout-readonly';
 import { requestKey } from '../../shared/util/request-key';
 import { money } from '../evaluation/evaluation-format';
@@ -99,6 +100,8 @@ export class CloseoutPage implements OnInit {
   readonly locale = inject(LocaleService).locale;
   /** The award baseline link opens the decision workspace, which has its own right. */
   readonly readsDecision = inject(SessionService).hasPermission('Decision.View');
+  /** Phase 3 SI-066: the tender, work package, project and firm this closeout belongs to, linked for readers who can open them. */
+  readonly links = inject(RecordLinks);
 
   readonly lifecycleLabel = lifecycleLabel;
   readonly ratingLabel = ratingLabel;
@@ -163,6 +166,36 @@ export class CloseoutPage implements OnInit {
 
   readonly steps = STEPS;
   readonly closed = computed(() => this.workspace()?.lifecycle === 'Closed');
+  /**
+   * Phase 3 SI-060 (ADR-110): the server says no closeout applies to this award (declined, withdrawn, a withdrawal pending, or not yet
+   * accepted). Nothing recorded yet: the steps are not offered at all; something recorded earlier stays readable (the server offers no
+   * edit). Absent on older payloads, which keep the page as it was.
+   */
+  readonly notApplicable = computed(() => this.workspace()?.closeoutAllowed === false);
+  readonly stepsHidden = computed(
+    () => this.notApplicable() && this.workspace()?.lifecycle === 'Pending',
+  );
+  readonly notApplicableNote = computed(() => {
+    const view = this.workspace();
+    if (!view || view.closeoutAllowed !== false) return '';
+    const recorded = view.lifecycle !== 'Pending';
+    switch (view.awardState) {
+      case 'Withdrawn':
+        return recorded
+          ? $localize`:@@closeout.notApplicableWithdrawnRecorded:This award was withdrawn. What was recorded before stays readable; the closeout can no longer be changed.`
+          : $localize`:@@closeout.notApplicableWithdrawn:This award was withdrawn — no closeout is recorded for it.`;
+      case 'Declined':
+        return recorded
+          ? $localize`:@@closeout.notApplicableDeclinedRecorded:The subcontractor declined this award. What was recorded before stays readable; the closeout can no longer be changed.`
+          : $localize`:@@closeout.notApplicableDeclined:The subcontractor declined this award — no closeout is recorded for it.`;
+      case 'WithdrawalPending':
+        return $localize`:@@closeout.notApplicableWithdrawalPending:A withdrawal of this award awaits approval — no closeout is recorded while it does.`;
+      case 'AwaitingResponse':
+        return $localize`:@@closeout.notApplicableAwaiting:The subcontractor has not accepted this award yet — the closeout starts once the award is accepted.`;
+      default:
+        return $localize`:@@closeout.notApplicable:This award is not in force — no closeout is recorded for it.`;
+    }
+  });
   /** CF-101 (S-ROLES): the roles that may reopen, from the permission matrix; null until read, or when the read failed. */
   readonly reopenRoles = signal<readonly string[] | null>(null);
   /** CF-101 AC2: what a closed closeout tells its reader about reopening — who may, from the matrix, never a hard-coded role. */

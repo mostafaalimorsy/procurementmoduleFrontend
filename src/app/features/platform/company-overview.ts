@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BusinessDatePipe } from '../../core/localization/business-format';
 import { firstAdminStateLabel, identityMailLabel } from '../../core/localization/labels';
@@ -18,6 +18,10 @@ import {
   PlatformApi,
   problemMessage,
 } from './platform-api.service';
+import { ActivatedRoute } from '@angular/router';
+
+/** Phase 3 SI-159: the tabs a company's panels are split across. */
+export type CompanySection = 'overview' | 'access' | 'data';
 
 /** Company identity, lifecycle and first-administrator provisioning state. */
 @Component({
@@ -26,500 +30,528 @@ import {
   styleUrl: './platform.scss',
   template: `
     @if (store.company(); as item) {
-      <div class="grid">
-        <section class="panel" aria-labelledby="record-title">
-          <div class="toolbar">
-            <h2 id="record-title" i18n="@@company.record">Company record</h2>
-            @if (!renaming()) {
-              <button
-                type="button"
-                class="secondary"
-                [disabled]="store.busy()"
-                (click)="startRename(item.name)"
-                i18n="@@company.rename"
-              >
-                Rename
-              </button>
-            }
-          </div>
-          @if (renaming()) {
-            <form (ngSubmit)="rename(item.id, item.version)" #renameForm="ngForm">
-              <label
-                ><span i18n="@@companies.name">Company name</span
-                ><input
-                  name="name"
-                  required
-                  maxlength="200"
-                  autocomplete="organization"
-                  [(ngModel)]="name"
-                  aria-describedby="rename-hint"
-              /></label>
-              <small id="rename-hint" i18n="@@company.renameHint"
-                >Only the display name changes. The company code, its users and the first Company
-                Admin stay as they are; the change is recorded in the platform audit.</small
-              >
-              <div class="actions">
-                <button
-                  [disabled]="
-                    renameForm.invalid || !name.trim() || name.trim() === item.name || store.busy()
-                  "
-                  i18n="@@company.saveName"
-                >
-                  Save name
-                </button>
+      <!-- Phase 3 SI-159: the company's panels by tab — Overview (record, status, commercial footing), Access (first admin,
+           admin recovery, beside the access policy) and Data (residency, data reuse, and deletion as the exception). -->
+      @if (view() === 'overview') {
+        <div class="grid">
+          <section class="panel" aria-labelledby="record-title">
+            <div class="toolbar">
+              <h2 id="record-title" i18n="@@company.record">Company record</h2>
+              @if (!renaming()) {
                 <button
                   type="button"
                   class="secondary"
-                  (click)="renaming.set(false)"
+                  [disabled]="store.busy()"
+                  (click)="startRename(item.name)"
+                  i18n="@@company.rename"
+                >
+                  Rename
+                </button>
+              }
+            </div>
+            @if (renaming()) {
+              <form (ngSubmit)="rename(item.id, item.version)" #renameForm="ngForm">
+                <label
+                  ><span i18n="@@companies.name">Company name</span
+                  ><input
+                    name="name"
+                    required
+                    maxlength="200"
+                    autocomplete="organization"
+                    [(ngModel)]="name"
+                    aria-describedby="rename-hint"
+                /></label>
+                <small id="rename-hint" i18n="@@company.renameHint"
+                  >Only the display name changes. The company code, its users and the first Company
+                  Admin stay as they are; the change is recorded in the platform audit.</small
+                >
+                <div class="actions">
+                  <button
+                    [disabled]="
+                      renameForm.invalid ||
+                      !name.trim() ||
+                      name.trim() === item.name ||
+                      store.busy()
+                    "
+                    i18n="@@company.saveName"
+                  >
+                    Save name
+                  </button>
+                  <button
+                    type="button"
+                    class="secondary"
+                    (click)="renaming.set(false)"
+                    i18n="@@common.cancel"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            }
+            <dl>
+              <dt i18n="@@companies.name">Company name</dt>
+              <dd>
+                <bdi>{{ item.name }}</bdi>
+              </dd>
+              <dt i18n="@@companies.code">Company code</dt>
+              <dd>
+                <bdi dir="ltr">{{ item.code }}</bdi>
+                <small class="muted" i18n="@@company.codeFixed"> · permanent identifier</small>
+              </dd>
+              <dt i18n="@@company.id">Company ID</dt>
+              <dd>
+                <bdi dir="ltr">{{ item.id }}</bdi>
+              </dd>
+              <dt i18n="@@company.created">Created</dt>
+              <dd>{{ item.createdAtUtc | businessDate: 'instant' }}</dd>
+            </dl>
+          </section>
+        </div>
+      }
+      @if (view() === 'access') {
+        <div class="grid">
+          <section class="panel" aria-labelledby="admin-title">
+            <h2 id="admin-title" i18n="@@company.firstAdmin">First Company Admin</h2>
+            <p>
+              <bdi dir="ltr">{{ item.firstAdminEmail }}</bdi>
+            </p>
+            <p class="muted">{{ firstAdminState(item.firstAdminState) }}</p>
+            @if (
+              item.firstAdminState === 'InvitationIssued' && item.firstAdminInvitationEmail;
+              as mail
+            ) {
+              <p
+                class="muted"
+                [class.first-admin-mail--failed]="mail.status === 'Failed'"
+                [attr.role]="mail.status === 'Failed' ? 'status' : null"
+              >
+                {{ mailLabel(mail) }}
+              </p>
+            }
+            @if (item.firstAdminState === 'InvitationIssued') {
+              <p class="muted" i18n="@@company.firstAdminHelp">
+                The administrator chooses their own password from a one-time invitation.
+              </p>
+              <button
+                class="secondary"
+                type="button"
+                [disabled]="store.busy()"
+                (click)="resend(item.id)"
+                i18n="@@company.resend"
+              >
+                Resend first admin invitation
+              </button>
+            }
+          </section>
+        </div>
+      }
+      @if (view() === 'overview') {
+        <section class="panel" aria-labelledby="status-title">
+          <div class="toolbar">
+            <h2 id="status-title" i18n="@@company.statusTitle">Company status</h2>
+            @if (item.accessState === 'ReadOnlyGrace') {
+              <button
+                class="secondary"
+                type="button"
+                [disabled]="store.busy()"
+                (click)="confirmingEndGrace.set(true)"
+                i18n="@@company.endGrace"
+              >
+                End the grace now
+              </button>
+            } @else {
+              @if (item.isActive) {
+                <button
+                  class="secondary"
+                  type="button"
+                  [disabled]="store.busy()"
+                  (click)="openGrace(item.id)"
+                  i18n="@@company.startGrace"
+                >
+                  Start a read-only grace
+                </button>
+              }
+              <button
+                class="secondary"
+                type="button"
+                [disabled]="store.busy()"
+                (click)="openStatus(item.id)"
+              >
+                @if (item.isActive) {
+                  <ng-container i18n="@@company.suspend">Suspend company</ng-container>
+                } @else {
+                  <ng-container i18n="@@company.reactivate">Reactivate company</ng-container>
+                }
+              </button>
+            }
+          </div>
+          @if (item.accessState === 'ReadOnlyGrace') {
+            <p data-testid="company-grace" i18n="@@company.graceState">
+              Read-only until <bdi>{{ item.graceEndsAtUtc | businessDate: 'instant' }}</bdi
+              >: members sign in, read and export, but nothing is created, changed or sent.
+            </p>
+            @if (item.graceEndState === 'Active') {
+              <p i18n="@@company.graceThenPlan">
+                Then the new plan applies and the company is active again.
+              </p>
+            } @else {
+              <p i18n="@@company.graceThenSuspended">Then the company is suspended.</p>
+            }
+          } @else {
+            <p i18n="@@company.suspendHelp">
+              Suspension denies tenant access and preserves all company data.
+            </p>
+          }
+        </section>
+      }
+      @if (view() === 'access') {
+        <!-- CF-079 (ADR-143): a new Company Admin after the only one was lost — two operators, a written request. -->
+        @if (item.isActive) {
+          <section class="panel" aria-labelledby="recovery-title" data-testid="admin-recovery">
+            <h2 id="recovery-title" i18n="@@recovery.title">Company Admin recovery</h2>
+            <p class="muted" i18n="@@recovery.help">
+              Only when the company has lost its only Company Admin, on its written request: one
+              operator asks, a second operator approves, and the new Company Admin receives the
+              normal invitation. Every Company Admin is told and sees it in the company's audit log.
+            </p>
+            @for (recovery of recoveries(); track recovery.id) {
+              @if (recovery.status === 'Pending') {
+                <p data-testid="recovery-pending" i18n="@@recovery.pending">
+                  <bdi dir="ltr">{{ recovery.email }}</bdi> on request
+                  <bdi>{{ recovery.requestReference }}</bdi
+                  >, asked by <bdi>{{ recovery.requestedByName ?? recovery.requestedBy }}</bdi
+                  >.
+                </p>
+                <div class="actions">
+                  @if (recovery.requestedBy === me()) {
+                    <span class="muted" i18n="@@recovery.waiting"
+                      >Waiting for a second operator.</span
+                    >
+                  } @else {
+                    <button
+                      type="button"
+                      [disabled]="store.busy()"
+                      (click)="decide(recovery.id, 'approve')"
+                      i18n="@@recovery.approve"
+                    >
+                      Approve and invite
+                    </button>
+                  }
+                  <button
+                    class="secondary"
+                    type="button"
+                    [disabled]="store.busy()"
+                    (click)="decide(recovery.id, 'cancel')"
+                    i18n="@@recovery.cancel"
+                  >
+                    Cancel the request
+                  </button>
+                </div>
+              }
+            }
+            @if (!hasPending()) {
+              <label for="recovery-email" i18n="@@recovery.email"
+                >New Company Admin's email (an allowed domain)</label
+              >
+              <input id="recovery-email" dir="ltr" type="email" [(ngModel)]="recoveryEmail" />
+              <label for="recovery-name" i18n="@@recovery.name">Name</label>
+              <input id="recovery-name" maxlength="160" [(ngModel)]="recoveryName" />
+              <label for="recovery-reference" i18n="@@recovery.reference"
+                >Customer's written request (reference)</label
+              >
+              <input id="recovery-reference" maxlength="200" [(ngModel)]="recoveryReference" />
+              <button
+                class="secondary"
+                type="button"
+                [disabled]="
+                  store.busy() ||
+                  !recoveryEmail.trim() ||
+                  !recoveryName.trim() ||
+                  recoveryReference.trim().length < 3
+                "
+                (click)="requestRecovery()"
+                i18n="@@recovery.request"
+              >
+                Ask a second operator to approve
+              </button>
+            }
+          </section>
+        }
+      }
+      @if (view() === 'overview') {
+        <!-- CF-127 / OD-15 (ADR-138): the commercial footing — shown to the operator, read by no control. -->
+        @if (item.accessState !== 'Purged') {
+          <section
+            class="panel"
+            aria-labelledby="commercial-title"
+            data-testid="company-commercial"
+          >
+            <h2 id="commercial-title" i18n="@@company.commercialTitle">Commercial terms</h2>
+            <p><app-commercial-chip [company]="item" /></p>
+            @if (item.commercialReference) {
+              <p class="muted" i18n="@@company.commercialReferenceShown">
+                Contract <bdi>{{ item.commercialReference }}</bdi>
+              </p>
+            }
+            @if (editingTerms()) {
+              <label for="terms-mode" i18n="@@companies.commercialMode">Mode</label>
+              <select id="terms-mode" [(ngModel)]="termsMode">
+                @for (mode of modes; track mode) {
+                  <option [value]="mode">{{ modeLabel(mode) }}</option>
+                }
+              </select>
+              <label for="terms-starts" i18n="@@companies.commercialStarts">Starts on</label>
+              <input id="terms-starts" type="date" [(ngModel)]="termsStartsOn" />
+              <label for="terms-ends" i18n="@@companies.commercialEnds"
+                >Ends on (required for a pilot)</label
+              >
+              <input id="terms-ends" type="date" [(ngModel)]="termsEndsOn" />
+              <label for="terms-reference" i18n="@@companies.commercialReference"
+                >Contract reference</label
+              >
+              <input id="terms-reference" maxlength="200" [(ngModel)]="termsReference" />
+              <div class="actions">
+                <button
+                  type="button"
+                  [disabled]="
+                    store.busy() || !termsStartsOn || (termsMode !== 'Subscribed' && !termsEndsOn)
+                  "
+                  (click)="saveTerms()"
+                  i18n="@@company.saveTerms"
+                >
+                  Save commercial terms
+                </button>
+                <button
+                  class="secondary"
+                  type="button"
+                  (click)="editingTerms.set(false)"
                   i18n="@@common.cancel"
                 >
                   Cancel
                 </button>
               </div>
-            </form>
-          }
-          <dl>
-            <dt i18n="@@companies.name">Company name</dt>
-            <dd>
-              <bdi>{{ item.name }}</bdi>
-            </dd>
-            <dt i18n="@@companies.code">Company code</dt>
-            <dd>
-              <bdi dir="ltr">{{ item.code }}</bdi>
-              <small class="muted" i18n="@@company.codeFixed"> · permanent identifier</small>
-            </dd>
-            <dt i18n="@@company.id">Company ID</dt>
-            <dd>
-              <bdi dir="ltr">{{ item.id }}</bdi>
-            </dd>
-            <dt i18n="@@company.created">Created</dt>
-            <dd>{{ item.createdAtUtc | businessDate: 'instant' }}</dd>
-          </dl>
-        </section>
-        <section class="panel" aria-labelledby="admin-title">
-          <h2 id="admin-title" i18n="@@company.firstAdmin">First Company Admin</h2>
-          <p>
-            <bdi dir="ltr">{{ item.firstAdminEmail }}</bdi>
-          </p>
-          <p class="muted">{{ firstAdminState(item.firstAdminState) }}</p>
-          @if (
-            item.firstAdminState === 'InvitationIssued' && item.firstAdminInvitationEmail;
-            as mail
-          ) {
-            <p
-              class="muted"
-              [class.first-admin-mail--failed]="mail.status === 'Failed'"
-              [attr.role]="mail.status === 'Failed' ? 'status' : null"
-            >
-              {{ mailLabel(mail) }}
-            </p>
-          }
-          @if (item.firstAdminState === 'InvitationIssued') {
-            <p class="muted" i18n="@@company.firstAdminHelp">
-              The administrator chooses their own password from a one-time invitation.
-            </p>
-            <button
-              class="secondary"
-              type="button"
-              [disabled]="store.busy()"
-              (click)="resend(item.id)"
-              i18n="@@company.resend"
-            >
-              Resend first admin invitation
-            </button>
-          }
-        </section>
-      </div>
-      <section class="panel" aria-labelledby="status-title">
-        <div class="toolbar">
-          <h2 id="status-title" i18n="@@company.statusTitle">Company status</h2>
-          @if (item.accessState === 'ReadOnlyGrace') {
-            <button
-              class="secondary"
-              type="button"
-              [disabled]="store.busy()"
-              (click)="confirmingEndGrace.set(true)"
-              i18n="@@company.endGrace"
-            >
-              End the grace now
-            </button>
-          } @else {
-            @if (item.isActive) {
+            } @else {
               <button
                 class="secondary"
                 type="button"
                 [disabled]="store.busy()"
-                (click)="openGrace(item.id)"
-                i18n="@@company.startGrace"
+                (click)="editTerms(item)"
+                i18n="@@company.editTerms"
               >
-                Start a read-only grace
+                Record commercial terms
               </button>
+            }
+            <p class="muted" i18n="@@companies.commercialHelp">
+              Recorded for the operator only. A paid pilot gets exactly the same security, access
+              and plan rules as any other company; nothing is billed.
+            </p>
+          </section>
+        }
+      }
+      @if (view() === 'data') {
+        <!-- OD-20 (ADR-139): the company's country and the residency policy it is placed under. -->
+        @if (item.accessState !== 'Purged') {
+          <section class="panel" aria-labelledby="residency-title" data-testid="company-residency">
+            <h2 id="residency-title" i18n="@@company.residencyTitle">Data residency</h2>
+            @if (placedPolicy(item); as placed) {
+              <p i18n="@@company.residencyPlaced">
+                <bdi dir="ltr">{{ item.countryCode }}</bdi> · <bdi>{{ placed.name }}</bdi> — data
+                kept in <bdi dir="ltr" class="ltr-token">{{ placed.region }}</bdi
+                >, at least <bdi dir="ltr">{{ placed.minimumRetentionDays }}</bdi> days before a
+                deletion
+              </p>
+              @if (item.residencyOverrideReason) {
+                <p class="muted" i18n="@@company.residencyOverride">
+                  Not the policy recommended for its country:
+                  <bdi>{{ item.residencyOverrideReason }}</bdi>
+                </p>
+              }
+            } @else {
+              <p class="muted" i18n="@@company.residencyNone">
+                Not placed under a residency policy yet.
+              </p>
+            }
+            <label for="residency-country" i18n="@@company.residencyCountry"
+              >Company country (two-letter code)</label
+            >
+            <input
+              id="residency-country"
+              dir="ltr"
+              maxlength="2"
+              [ngModel]="residencyCountry()"
+              (ngModelChange)="residencyCountry.set($event.toUpperCase())"
+            />
+            <label for="residency-policy" i18n="@@company.residencyPolicy">Residency policy</label>
+            <select id="residency-policy" [(ngModel)]="residencyPolicyId">
+              <option value="" i18n="@@companies.chooseMode">Choose</option>
+              @for (policy of assignablePolicies(); track policy.id) {
+                <option [value]="policy.id">
+                  {{ policy.name }} ({{ policy.region }})
+                  @if (recommended(policy)) {
+                    — {{ recommendedLabel }}
+                  }
+                </option>
+              }
+            </select>
+            @if (needsReason()) {
+              <label for="residency-reason" i18n="@@company.residencyReason"
+                >Why not the policy recommended for this country</label
+              >
+              <textarea
+                id="residency-reason"
+                rows="2"
+                maxlength="500"
+                [(ngModel)]="residencyReason"
+              ></textarea>
             }
             <button
               class="secondary"
               type="button"
-              [disabled]="store.busy()"
-              (click)="openStatus(item.id)"
+              [disabled]="store.busy() || residencyCountry().length !== 2 || !residencyPolicyId"
+              (click)="placeResidency()"
+              i18n="@@company.residencySave"
             >
-              @if (item.isActive) {
-                <ng-container i18n="@@company.suspend">Suspend company</ng-container>
-              } @else {
-                <ng-container i18n="@@company.reactivate">Reactivate company</ng-container>
-              }
+              Place under this policy
             </button>
-          }
-        </div>
-        @if (item.accessState === 'ReadOnlyGrace') {
-          <p data-testid="company-grace" i18n="@@company.graceState">
-            Read-only until <bdi>{{ item.graceEndsAtUtc | businessDate: 'instant' }}</bdi
-            >: members sign in, read and export, but nothing is created, changed or sent.
-          </p>
-          @if (item.graceEndState === 'Active') {
-            <p i18n="@@company.graceThenPlan">
-              Then the new plan applies and the company is active again.
-            </p>
-          } @else {
-            <p i18n="@@company.graceThenSuspended">Then the company is suspended.</p>
-          }
-        } @else {
-          <p i18n="@@company.suspendHelp">
-            Suspension denies tenant access and preserves all company data.
-          </p>
+          </section>
         }
-      </section>
 
-      <!-- CF-079 (ADR-143): a new Company Admin after the only one was lost — two operators, a written request. -->
-      @if (item.isActive) {
-        <section class="panel" aria-labelledby="recovery-title" data-testid="admin-recovery">
-          <h2 id="recovery-title" i18n="@@recovery.title">Company Admin recovery</h2>
-          <p class="muted" i18n="@@recovery.help">
-            Only when the company has lost its only Company Admin, on its written request: one
-            operator asks, a second operator approves, and the new Company Admin receives the normal
-            invitation. Every Company Admin is told and sees it in the company's audit log.
-          </p>
-          @for (recovery of recoveries(); track recovery.id) {
-            @if (recovery.status === 'Pending') {
-              <p data-testid="recovery-pending" i18n="@@recovery.pending">
-                <bdi dir="ltr">{{ recovery.email }}</bdi> on request
-                <bdi>{{ recovery.requestReference }}</bdi
-                >, asked by <bdi>{{ recovery.requestedByName ?? recovery.requestedBy }}</bdi
+        <!-- OD-16 (ADR-135): whether this company's intelligence evidence may ever leave it. -->
+        @if (item.accessState !== 'Purged') {
+          <section class="panel" aria-labelledby="reuse-title" data-testid="company-reuse">
+            <h2 id="reuse-title" i18n="@@company.reuseTitle">
+              Use of this company's data elsewhere
+            </h2>
+            @if (item.intelligenceReuse === 'AnonymizedAggregate') {
+              <p i18n="@@company.reuseAggregate">
+                Anonymised aggregates allowed, on the recorded legal basis:
+                <bdi>{{ item.intelligenceReuseLegalBasis }}</bdi>
+              </p>
+            } @else {
+              <p i18n="@@company.reuseTenantOnly">
+                This company only: its records and the intelligence computed from them serve this
+                company alone.
+              </p>
+            }
+            <p class="muted" i18n="@@company.reuseHelp">
+              No cross-company aggregate exists in the product today: this setting only records the
+              customer's permission and its legal basis. Under either setting the company's data is
+              deleted with it.
+            </p>
+            @if (item.intelligenceReuse === 'AnonymizedAggregate') {
+              <button
+                class="secondary"
+                type="button"
+                [disabled]="store.busy()"
+                (click)="setReuse('TenantOnly')"
+                i18n="@@company.reuseRevoke"
+              >
+                Return to this company only
+              </button>
+            } @else {
+              <label for="reuse-basis" i18n="@@company.reuseBasis"
+                >Legal basis (the agreement and its clause)</label
+              >
+              <textarea
+                id="reuse-basis"
+                rows="2"
+                maxlength="1000"
+                [(ngModel)]="reuseBasis"
+              ></textarea>
+              <button
+                class="secondary"
+                type="button"
+                [disabled]="store.busy() || reuseBasis.trim().length < 20"
+                (click)="setReuse('AnonymizedAggregate')"
+                i18n="@@company.reuseAllow"
+              >
+                Allow anonymised aggregates
+              </button>
+            }
+          </section>
+        }
+      }
+      @if (view() === 'data') {
+        <!-- CF-071 (ADR-134): deletion of a suspended company's data, on the customer's written request. -->
+        @if (item.accessState === 'Purged') {
+          <section class="panel" aria-labelledby="purge-title" data-testid="company-purged">
+            <h2 id="purge-title" i18n="@@company.purgeTitle">Company data</h2>
+            <p i18n="@@company.purged">
+              Every record and file of this company was deleted on
+              <bdi>{{ item.purgedAtUtc | businessDate: 'instant' }}</bdi
+              >. The deletion certificate is in the platform audit.
+            </p>
+            @if (certificate(); as done) {
+              <p data-testid="purge-certificate" i18n="@@company.purgeCertificate">
+                Deleted <bdi dir="ltr">{{ done.totalRows }}</bdi> records and
+                <bdi dir="ltr">{{ done.files }}</bdi> files on request
+                <bdi>{{ done.requestReference }}</bdi
                 >.
               </p>
+            }
+          </section>
+        } @else if (item.accessState === 'Suspended') {
+          <section class="panel" aria-labelledby="purge-title" data-testid="company-purge">
+            <h2 id="purge-title" i18n="@@company.purgeTitle">Company data</h2>
+            @if (item.purgeAfterUtc) {
+              <p i18n="@@company.purgeScheduled">
+                Deletion scheduled for
+                <bdi>{{ item.purgeAfterUtc | businessDate: 'instant' }}</bdi> on request
+                <bdi>{{ item.purgeRequestReference }}</bdi
+                >. Reactivating the company cancels it.
+              </p>
               <div class="actions">
-                @if (recovery.requestedBy === me()) {
-                  <span class="muted" i18n="@@recovery.waiting"
-                    >Waiting for a second operator.</span
-                  >
-                } @else {
-                  <button
-                    type="button"
-                    [disabled]="store.busy()"
-                    (click)="decide(recovery.id, 'approve')"
-                    i18n="@@recovery.approve"
-                  >
-                    Approve and invite
-                  </button>
-                }
                 <button
                   class="secondary"
                   type="button"
                   [disabled]="store.busy()"
-                  (click)="decide(recovery.id, 'cancel')"
-                  i18n="@@recovery.cancel"
+                  (click)="cancelPurge()"
+                  i18n="@@company.cancelPurge"
                 >
-                  Cancel the request
+                  Cancel the deletion
                 </button>
-              </div>
-            }
-          }
-          @if (!hasPending()) {
-            <label for="recovery-email" i18n="@@recovery.email"
-              >New Company Admin's email (an allowed domain)</label
-            >
-            <input id="recovery-email" dir="ltr" type="email" [(ngModel)]="recoveryEmail" />
-            <label for="recovery-name" i18n="@@recovery.name">Name</label>
-            <input id="recovery-name" maxlength="160" [(ngModel)]="recoveryName" />
-            <label for="recovery-reference" i18n="@@recovery.reference"
-              >Customer's written request (reference)</label
-            >
-            <input id="recovery-reference" maxlength="200" [(ngModel)]="recoveryReference" />
-            <button
-              class="secondary"
-              type="button"
-              [disabled]="
-                store.busy() ||
-                !recoveryEmail.trim() ||
-                !recoveryName.trim() ||
-                recoveryReference.trim().length < 3
-              "
-              (click)="requestRecovery()"
-              i18n="@@recovery.request"
-            >
-              Ask a second operator to approve
-            </button>
-          }
-        </section>
-      }
-
-      <!-- OD-20 (ADR-139): the company's country and the residency policy it is placed under. -->
-      @if (item.accessState !== 'Purged') {
-        <section class="panel" aria-labelledby="residency-title" data-testid="company-residency">
-          <h2 id="residency-title" i18n="@@company.residencyTitle">Data residency</h2>
-          @if (placedPolicy(item); as placed) {
-            <p i18n="@@company.residencyPlaced">
-              <bdi dir="ltr">{{ item.countryCode }}</bdi> · <bdi>{{ placed.name }}</bdi> — data kept
-              in <bdi dir="ltr" class="ltr-token">{{ placed.region }}</bdi
-              >, at least <bdi dir="ltr">{{ placed.minimumRetentionDays }}</bdi> days before a
-              deletion
-            </p>
-            @if (item.residencyOverrideReason) {
-              <p class="muted" i18n="@@company.residencyOverride">
-                Not the policy recommended for its country:
-                <bdi>{{ item.residencyOverrideReason }}</bdi>
-              </p>
-            }
-          } @else {
-            <p class="muted" i18n="@@company.residencyNone">
-              Not placed under a residency policy yet.
-            </p>
-          }
-          <label for="residency-country" i18n="@@company.residencyCountry"
-            >Company country (two-letter code)</label
-          >
-          <input
-            id="residency-country"
-            dir="ltr"
-            maxlength="2"
-            [ngModel]="residencyCountry()"
-            (ngModelChange)="residencyCountry.set($event.toUpperCase())"
-          />
-          <label for="residency-policy" i18n="@@company.residencyPolicy">Residency policy</label>
-          <select id="residency-policy" [(ngModel)]="residencyPolicyId">
-            <option value="" i18n="@@companies.chooseMode">Choose</option>
-            @for (policy of assignablePolicies(); track policy.id) {
-              <option [value]="policy.id">
-                {{ policy.name }} ({{ policy.region }})
-                @if (recommended(policy)) {
-                  — {{ recommendedLabel }}
+                @if (purgeDue(item)) {
+                  <button
+                    class="danger"
+                    type="button"
+                    [disabled]="store.busy()"
+                    (click)="confirmCode = ''; confirmingPurge.set(true)"
+                    i18n="@@company.runPurge"
+                  >
+                    Delete the company's data now
+                  </button>
                 }
-              </option>
+              </div>
+            } @else {
+              <p class="muted" i18n="@@company.purgeHelp">
+                On the customer's written request, after its export was delivered, schedule the
+                deletion of every record and file. It runs no earlier than the agreed retention.
+              </p>
+              <label for="purge-reference" i18n="@@company.purgeReference"
+                >Customer's written request (reference)</label
+              >
+              <input
+                id="purge-reference"
+                type="text"
+                maxlength="200"
+                [(ngModel)]="purgeReference"
+              />
+              <label for="purge-days" i18n="@@company.purgeDays"
+                >Delete no earlier than (days from now)</label
+              >
+              <input id="purge-days" type="number" min="1" max="365" [(ngModel)]="purgeDays" />
+              <button
+                class="secondary"
+                type="button"
+                [disabled]="store.busy() || purgeReference.trim().length < 3"
+                (click)="schedulePurge()"
+                i18n="@@company.schedulePurge"
+              >
+                Schedule the deletion
+              </button>
             }
-          </select>
-          @if (needsReason()) {
-            <label for="residency-reason" i18n="@@company.residencyReason"
-              >Why not the policy recommended for this country</label
-            >
-            <textarea
-              id="residency-reason"
-              rows="2"
-              maxlength="500"
-              [(ngModel)]="residencyReason"
-            ></textarea>
-          }
-          <button
-            class="secondary"
-            type="button"
-            [disabled]="store.busy() || residencyCountry().length !== 2 || !residencyPolicyId"
-            (click)="placeResidency()"
-            i18n="@@company.residencySave"
-          >
-            Place under this policy
-          </button>
-        </section>
-      }
-
-      <!-- CF-127 / OD-15 (ADR-138): the commercial footing — shown to the operator, read by no control. -->
-      @if (item.accessState !== 'Purged') {
-        <section class="panel" aria-labelledby="commercial-title" data-testid="company-commercial">
-          <h2 id="commercial-title" i18n="@@company.commercialTitle">Commercial terms</h2>
-          <p><app-commercial-chip [company]="item" /></p>
-          @if (item.commercialReference) {
-            <p class="muted" i18n="@@company.commercialReferenceShown">
-              Contract <bdi>{{ item.commercialReference }}</bdi>
-            </p>
-          }
-          @if (editingTerms()) {
-            <label for="terms-mode" i18n="@@companies.commercialMode">Mode</label>
-            <select id="terms-mode" [(ngModel)]="termsMode">
-              @for (mode of modes; track mode) {
-                <option [value]="mode">{{ modeLabel(mode) }}</option>
-              }
-            </select>
-            <label for="terms-starts" i18n="@@companies.commercialStarts">Starts on</label>
-            <input id="terms-starts" type="date" [(ngModel)]="termsStartsOn" />
-            <label for="terms-ends" i18n="@@companies.commercialEnds"
-              >Ends on (required for a pilot)</label
-            >
-            <input id="terms-ends" type="date" [(ngModel)]="termsEndsOn" />
-            <label for="terms-reference" i18n="@@companies.commercialReference"
-              >Contract reference</label
-            >
-            <input id="terms-reference" maxlength="200" [(ngModel)]="termsReference" />
-            <div class="actions">
-              <button
-                type="button"
-                [disabled]="
-                  store.busy() || !termsStartsOn || (termsMode !== 'Subscribed' && !termsEndsOn)
-                "
-                (click)="saveTerms()"
-                i18n="@@company.saveTerms"
-              >
-                Save commercial terms
-              </button>
-              <button
-                class="secondary"
-                type="button"
-                (click)="editingTerms.set(false)"
-                i18n="@@common.cancel"
-              >
-                Cancel
-              </button>
-            </div>
-          } @else {
-            <button
-              class="secondary"
-              type="button"
-              [disabled]="store.busy()"
-              (click)="editTerms(item)"
-              i18n="@@company.editTerms"
-            >
-              Record commercial terms
-            </button>
-          }
-          <p class="muted" i18n="@@companies.commercialHelp">
-            Recorded for the operator only. A paid pilot gets exactly the same security, access and
-            plan rules as any other company; nothing is billed.
-          </p>
-        </section>
-      }
-
-      <!-- OD-16 (ADR-135): whether this company's intelligence evidence may ever leave it. -->
-      @if (item.accessState !== 'Purged') {
-        <section class="panel" aria-labelledby="reuse-title" data-testid="company-reuse">
-          <h2 id="reuse-title" i18n="@@company.reuseTitle">Use of this company's data elsewhere</h2>
-          @if (item.intelligenceReuse === 'AnonymizedAggregate') {
-            <p i18n="@@company.reuseAggregate">
-              Anonymised aggregates allowed, on the recorded legal basis:
-              <bdi>{{ item.intelligenceReuseLegalBasis }}</bdi>
-            </p>
-          } @else {
-            <p i18n="@@company.reuseTenantOnly">
-              This company only: its records and the intelligence computed from them serve this
-              company alone.
-            </p>
-          }
-          <p class="muted" i18n="@@company.reuseHelp">
-            No cross-company aggregate exists in the product today: this setting only records the
-            customer's permission and its legal basis. Under either setting the company's data is
-            deleted with it.
-          </p>
-          @if (item.intelligenceReuse === 'AnonymizedAggregate') {
-            <button
-              class="secondary"
-              type="button"
-              [disabled]="store.busy()"
-              (click)="setReuse('TenantOnly')"
-              i18n="@@company.reuseRevoke"
-            >
-              Return to this company only
-            </button>
-          } @else {
-            <label for="reuse-basis" i18n="@@company.reuseBasis"
-              >Legal basis (the agreement and its clause)</label
-            >
-            <textarea
-              id="reuse-basis"
-              rows="2"
-              maxlength="1000"
-              [(ngModel)]="reuseBasis"
-            ></textarea>
-            <button
-              class="secondary"
-              type="button"
-              [disabled]="store.busy() || reuseBasis.trim().length < 20"
-              (click)="setReuse('AnonymizedAggregate')"
-              i18n="@@company.reuseAllow"
-            >
-              Allow anonymised aggregates
-            </button>
-          }
-        </section>
-      }
-
-      <!-- CF-071 (ADR-134): deletion of a suspended company's data, on the customer's written request. -->
-      @if (item.accessState === 'Purged') {
-        <section class="panel" aria-labelledby="purge-title" data-testid="company-purged">
-          <h2 id="purge-title" i18n="@@company.purgeTitle">Company data</h2>
-          <p i18n="@@company.purged">
-            Every record and file of this company was deleted on
-            <bdi>{{ item.purgedAtUtc | businessDate: 'instant' }}</bdi
-            >. The deletion certificate is in the platform audit.
-          </p>
-          @if (certificate(); as done) {
-            <p data-testid="purge-certificate" i18n="@@company.purgeCertificate">
-              Deleted <bdi dir="ltr">{{ done.totalRows }}</bdi> records and
-              <bdi dir="ltr">{{ done.files }}</bdi> files on request
-              <bdi>{{ done.requestReference }}</bdi
-              >.
-            </p>
-          }
-        </section>
-      } @else if (item.accessState === 'Suspended') {
-        <section class="panel" aria-labelledby="purge-title" data-testid="company-purge">
-          <h2 id="purge-title" i18n="@@company.purgeTitle">Company data</h2>
-          @if (item.purgeAfterUtc) {
-            <p i18n="@@company.purgeScheduled">
-              Deletion scheduled for
-              <bdi>{{ item.purgeAfterUtc | businessDate: 'instant' }}</bdi> on request
-              <bdi>{{ item.purgeRequestReference }}</bdi
-              >. Reactivating the company cancels it.
-            </p>
-            <div class="actions">
-              <button
-                class="secondary"
-                type="button"
-                [disabled]="store.busy()"
-                (click)="cancelPurge()"
-                i18n="@@company.cancelPurge"
-              >
-                Cancel the deletion
-              </button>
-              @if (purgeDue(item)) {
-                <button
-                  class="danger"
-                  type="button"
-                  [disabled]="store.busy()"
-                  (click)="confirmCode = ''; confirmingPurge.set(true)"
-                  i18n="@@company.runPurge"
-                >
-                  Delete the company's data now
-                </button>
-              }
-            </div>
-          } @else {
-            <p class="muted" i18n="@@company.purgeHelp">
-              On the customer's written request, after its export was delivered, schedule the
-              deletion of every record and file. It runs no earlier than the agreed retention.
-            </p>
-            <label for="purge-reference" i18n="@@company.purgeReference"
-              >Customer's written request (reference)</label
-            >
-            <input id="purge-reference" type="text" maxlength="200" [(ngModel)]="purgeReference" />
-            <label for="purge-days" i18n="@@company.purgeDays"
-              >Delete no earlier than (days from now)</label
-            >
-            <input id="purge-days" type="number" min="1" max="365" [(ngModel)]="purgeDays" />
-            <button
-              class="secondary"
-              type="button"
-              [disabled]="store.busy() || purgeReference.trim().length < 3"
-              (click)="schedulePurge()"
-              i18n="@@company.schedulePurge"
-            >
-              Schedule the deletion
-            </button>
-          }
-        </section>
+          </section>
+        }
       }
 
       @if (confirmingPurge()) {
@@ -616,6 +648,15 @@ import {
 })
 export class CompanyOverview {
   protected readonly store = inject(CompanyStore);
+  private readonly route = inject(ActivatedRoute, { optional: true });
+  /** Phase 3 SI-159: which tab's panels to show (an input when embedded, else the route's data; Overview by default). */
+  readonly section = input<CompanySection | null>(null);
+  protected readonly view = computed<CompanySection>(
+    () =>
+      this.section() ??
+      (this.route?.snapshot?.data?.['section'] as CompanySection | undefined) ??
+      'overview',
+  );
   private readonly api = inject(PlatformApi);
   protected readonly firstAdminState = firstAdminStateLabel;
   protected readonly mailLabel = identityMailLabel;

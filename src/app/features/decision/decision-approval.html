@@ -1,6 +1,9 @@
 @let view = workspace();
 @if (submission(); as current) {
   <section class="prj-section" aria-labelledby="submission-title">
+    <!-- Phase 3 SI-053: the approver's brief leads; the governance checks (projected) follow it, folded when they all pass. -->
+    <app-decision-brief [workspace]="view" />
+    <ng-content />
     <h2 id="submission-title" class="dc-heading">
       <span i18n="@@approval.submissionTitle">Decision version {{ current.number }}</span>
       <span
@@ -214,8 +217,8 @@
         <a
           routerLink="/approval-matrix/read"
           [queryParams]="{ rule: current.route.isDefault ? 'default' : current.route.ruleName }"
-          i18n="@@decision.routeSeeRule"
-          >See this rule in the approval routes</a
+          i18n="@@decision.routeSeeRuleRules"
+          >See this rule in the approval rules</a
         >
       }
     </p>
@@ -253,7 +256,8 @@
     @if (view.access.approve && pending() && view.approvalBlocker) {
       <p class="prj-note tnd-attention-box" role="note">{{ blockerLabel(view.approvalBlocker) }}</p>
     }
-    <div class="prj-actions">
+    <!-- Phase 3 SI-053: the approver's actions stay in reach while the brief and the route are read. -->
+    <div class="prj-actions" [class.dap-sticky]="canApprove() || canSendBack()">
       @if (canApprove()) {
         <button class="prj-btn" type="button" (click)="start('Approve')" i18n="@@approval.approve">
           Approve

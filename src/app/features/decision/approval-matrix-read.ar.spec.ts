@@ -99,7 +99,7 @@ describe('Approval routes in Arabic (CF-136)', () => {
     const element = page.nativeElement as HTMLElement;
     const shown = text(element);
     for (const phrase of [
-      'مسارات الاعتماد',
+      'قواعد الاعتماد',
       'القواعد النشطة',
       'المسار الافتراضي',
       'دون اعتماد مستقل',
@@ -117,7 +117,7 @@ describe('Approval routes in Arabic (CF-136)', () => {
     expect(text(items[1])).toContain('مسؤول الشركة');
     // Only the company's own rule names, codes and amounts are Latin; no English copy.
     expect(shown).not.toMatch(
-      /Approval routes|Active rules|Default route|any approver|Approver \/ Director|up to|Without independent/,
+      /Approval routes|Approval rules|Active rules|Default route|any approver|Approver \/ Director|up to|Without independent/,
     );
     expect(shown).not.toMatch(/[٠-٩]/);
     expect(element.querySelectorAll('button, input, select, textarea, form')).toHaveLength(0);

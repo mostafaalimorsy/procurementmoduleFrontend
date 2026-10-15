@@ -8,7 +8,8 @@
 h1 {
   font-family: var(--font-display);
   font-weight: 400;
-  font-size: clamp(2.2rem, 5vw, 4rem);
+  /* Phase 3 SI-064: a greeting, not a banner — My work starts within the first screen. */
+  font-size: clamp(1.8rem, 3.6vw, 2.6rem);
   line-height: 1.12;
   letter-spacing: -0.035em;
   max-inline-size: 54rem;

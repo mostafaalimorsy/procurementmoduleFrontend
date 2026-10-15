@@ -213,6 +213,71 @@ describe('Negotiation rounds', () => {
   });
 });
 
+describe('Every bidder at once (Phase 3 SI-113) and cancelled rounds (SI-112)', () => {
+  it("lists every bid's original, final and change for a commercial reader, and nothing for a technical one", () => {
+    const http = configure();
+    const two = comparison();
+    const view = comparison({
+      bids: [
+        two.bids[0],
+        {
+          ...two.bids[0],
+          openingBidId: 'b2',
+          subcontractorCode: 'BETA-01',
+          subcontractorName: 'Beta Contracting',
+          originalTotal: '1900000.00',
+          finalTotal: '1950000.00',
+          absoluteChange: '50000.00',
+          percentChange: '2.6',
+        },
+      ],
+    });
+    const page = TestBed.createComponent(NegotiationComparison);
+    page.detectChanges();
+    http.expectOne('/api/v1/tenders/t1/negotiation/comparison').flush(view);
+    page.detectChanges();
+    const table = (page.nativeElement as HTMLElement).querySelector('[data-testid="all-bidders"]')!;
+    const rows = [...table.querySelectorAll('tbody tr')].map((row) => text(row as HTMLElement));
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain('−200,000.00');
+    expect(rows[1]).toContain('BETA-01');
+    expect(rows[1]).toContain('+50,000.00');
+    TestBed.resetTestingModule();
+    const technical = configure();
+    const blind = TestBed.createComponent(NegotiationComparison);
+    blind.detectChanges();
+    technical
+      .expectOne('/api/v1/tenders/t1/negotiation/comparison')
+      .flush({ ...view, includesCommercial: false });
+    blind.detectChanges();
+    expect(
+      (blind.nativeElement as HTMLElement).querySelector('[data-testid="all-bidders"]'),
+    ).toBeNull();
+  });
+
+  it('says a response to a cancelled round was not evaluated', () => {
+    const http = configure();
+    const page = TestBed.createComponent(NegotiationPage);
+    page.detectChanges();
+    const base = round();
+    http.expectOne('/api/v1/tenders/t1/negotiation').flush(
+      negotiation({
+        rounds: [
+          round({
+            status: 'Cancelled',
+            participants: base.participants.map((participant) => ({
+              ...participant,
+              status: 'Submitted',
+            })),
+          }),
+        ],
+      }),
+    );
+    page.detectChanges();
+    expect(text(page.nativeElement as HTMLElement)).toContain('Not evaluated (round cancelled)');
+  });
+});
+
 describe('Original, revised and final comparison', () => {
   it('writes out every change and shows money exactly, left-to-right', () => {
     const http = configure();

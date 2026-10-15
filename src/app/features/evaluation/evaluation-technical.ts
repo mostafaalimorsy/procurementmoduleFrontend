@@ -34,6 +34,7 @@ import {
   scoreBlockedLabel,
   scorecardStatusLabel,
 } from './evaluation-labels';
+import { score } from './evaluation-format';
 
 interface EntryForm {
   score: string;
@@ -143,6 +144,11 @@ export class EvaluationTechnical {
     this.selectedId.set(bid.openingBidId);
     this.formError.set('');
     this.resetForm();
+  }
+
+  /** Phase 3 SI-141: a weighted total to one decimal, as on the recommendation and the brief. */
+  scoreText(value: number | null | undefined): string {
+    return score(value);
   }
 
   fileUrl(fileId: string): string {

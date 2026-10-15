@@ -17,6 +17,7 @@ import {
   projectProblemMessage,
 } from './projects.api';
 import { ErrorSummary } from '../../shared/ui/error-summary';
+import { savedState } from '../../core/a11y/saved-notice';
 
 /** Create and edit one procurement scope. Shares the project's currency rather than setting its own. */
 @Component({
@@ -198,7 +199,11 @@ export class WorkPackageForm implements OnInit {
       ? this.api.updateWorkPackage(current.id, { ...body, version: current.version })
       : this.api.createWorkPackage(this.projectId, body);
     request.subscribe({
-      next: (item) => this.router.navigate(['/work-packages', item.id]),
+      next: (item) =>
+        this.router.navigate(
+          ['/work-packages', item.id],
+          savedState(current ? 'updated' : 'created'),
+        ),
       error: (error: unknown) => {
         this.showServerErrors(error);
         const field = problemField(error);

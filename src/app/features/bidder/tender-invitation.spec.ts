@@ -152,6 +152,39 @@ describe('bidder invitation page', () => {
     verifyAll(http);
   });
 
+  it('puts the answer first, then the scope and documents, then the bid, then the contact (Phase 3 SI-152)', () => {
+    const { http, fixture, element } = render('#token=secret-token-value');
+    http.expectOne('/api/v1/tender-invitations/open').flush(view());
+    http.expectOne('/api/v1/tender-invitations/communications').flush({
+      myQuestions: [],
+      published: [],
+      addenda: [],
+      canAsk: true,
+      questionsClosedReason: null,
+      questionMaxLength: 4000,
+      outstandingAcknowledgements: 0,
+      currentRevision: 1,
+      canAcknowledge: true,
+      serverTimeUtc: '2026-10-01T09:00:00Z',
+    });
+    fixture.detectChanges();
+    const order = [
+      'bid-answer-title',
+      'bid-scope-title',
+      'bid-documents-title',
+      'bid-yours-title',
+      'bid-contact-title',
+    ]
+      .map((id) => element.querySelector(`[aria-labelledby="${id}"]`))
+      .filter((section): section is Element => section !== null);
+    expect(order.length).toBeGreaterThanOrEqual(4);
+    for (let index = 1; index < order.length; index++)
+      expect(
+        order[index - 1].compareDocumentPosition(order[index]) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    verifyAll(http);
+  });
+
   it('records intending to bid, and requires a reason — and a comment for "Other" — to decline', () => {
     const { http, fixture, element, page } = render('#token=t1');
     http.expectOne('/api/v1/tender-invitations/open').flush(view());
@@ -324,7 +357,7 @@ describe('bidder portal identity and bid entry (Part 7)', () => {
     }
     const content = text(element);
     expect(content).toContain('Delta Construction');
-    expect(content).toContain('via Subcontractor Intelligence');
+    expect(content).toContain('via Subtriva');
     expect(content).toContain('Prices are in QAR');
     const image = element.querySelector('.bid-logo') as HTMLImageElement;
     // Decorative: the name is written beside it, so a screen reader does not hear it twice.

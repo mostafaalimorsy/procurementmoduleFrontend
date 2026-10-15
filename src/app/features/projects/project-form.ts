@@ -16,6 +16,7 @@ import {
   projectProblemMessage,
 } from './projects.api';
 import { ErrorSummary } from '../../shared/ui/error-summary';
+import { savedState } from '../../core/a11y/saved-notice';
 
 /**
  * Create and edit share one form because the fields are identical; only the submit differs.
@@ -166,7 +167,11 @@ export class ProjectForm implements OnInit {
         })
       : this.api.createProject(body);
     request.subscribe({
-      next: (project) => this.router.navigate(['/projects', project.id]),
+      next: (project) =>
+        this.router.navigate(
+          ['/projects', project.id],
+          savedState(current ? 'updated' : 'created'),
+        ),
       error: (error: unknown) => {
         this.showServerErrors(error);
         const field = problemField(error);

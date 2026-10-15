@@ -111,110 +111,120 @@
     }
 
     @if (canRecord() && activeTypes().length) {
-      <form class="prj-form" (ngSubmit)="record()">
-        <fieldset class="prj-fieldset">
-          <legend i18n="@@compliance.recordLegend">Record a document</legend>
-          <p class="prj-hint" i18n="@@compliance.recordHint">
-            A renewal or correction is a new record: the earlier one stays in the history.
-          </p>
-          <div class="prj-grid">
-            <div class="prj-field">
-              <label for="compliance-type" i18n="@@compliance.type">Document type</label>
-              <select
-                id="compliance-type"
-                name="typeId"
-                [(ngModel)]="form.typeId"
-                (ngModelChange)="edited()"
-                required
+      <!-- Phase 3 SI-024: the entry form opens on request instead of standing open above the firm's evidence. -->
+      <details
+        class="cmp-record"
+        [open]="recordOpen()"
+        (toggle)="recordOpen.set($any($event.target).open)"
+      >
+        <summary class="prj-btn prj-btn--ghost" i18n="@@compliance.recordOpen">
+          Record a document
+        </summary>
+        <form class="prj-form" (ngSubmit)="record()">
+          <fieldset class="prj-fieldset">
+            <legend i18n="@@compliance.recordLegend">Record a document</legend>
+            <p class="prj-hint" i18n="@@compliance.recordHint">
+              A renewal or correction is a new record: the earlier one stays in the history.
+            </p>
+            <div class="prj-grid">
+              <div class="prj-field">
+                <label for="compliance-type" i18n="@@compliance.type">Document type</label>
+                <select
+                  id="compliance-type"
+                  name="typeId"
+                  [(ngModel)]="form.typeId"
+                  (ngModelChange)="edited()"
+                  required
+                >
+                  <option value="" disabled i18n="@@compliance.chooseType">Choose…</option>
+                  @for (type of activeTypes(); track type.id) {
+                    <option [value]="type.id">{{ type.name }}</option>
+                  }
+                </select>
+              </div>
+              <div class="prj-field">
+                <label for="compliance-number"
+                  ><ng-container i18n="@@compliance.number">Number</ng-container>
+                  @if (selectedType()?.requiresNumber) {
+                    <span class="prj-hint" i18n="@@compliance.requiredMark">(required)</span>
+                  }
+                </label>
+                <input
+                  id="compliance-number"
+                  name="number"
+                  dir="ltr"
+                  maxlength="100"
+                  [(ngModel)]="form.number"
+                />
+              </div>
+              <div class="prj-field">
+                <label for="compliance-issuer"
+                  ><ng-container i18n="@@compliance.issuer">Issuer</ng-container>
+                  @if (selectedType()?.requiresIssuer) {
+                    <span class="prj-hint" i18n="@@compliance.requiredMark">(required)</span>
+                  }
+                </label>
+                <input
+                  id="compliance-issuer"
+                  name="issuer"
+                  maxlength="200"
+                  [(ngModel)]="form.issuer"
+                />
+              </div>
+              <div class="prj-field">
+                <label for="compliance-issued" i18n="@@compliance.issuedOn">Issued on</label>
+                <input
+                  id="compliance-issued"
+                  name="issuedOn"
+                  type="date"
+                  [(ngModel)]="form.issuedOn"
+                />
+              </div>
+              <div class="prj-field">
+                <label for="compliance-expires"
+                  ><ng-container i18n="@@compliance.expiresOnLabel">Expires on</ng-container>
+                  @if (selectedType()?.requiresExpiry) {
+                    <span class="prj-hint" i18n="@@compliance.requiredMark">(required)</span>
+                  }
+                </label>
+                <input
+                  id="compliance-expires"
+                  name="expiresOn"
+                  type="date"
+                  [(ngModel)]="form.expiresOn"
+                />
+              </div>
+              <div class="prj-field">
+                <label for="compliance-file" i18n="@@compliance.file">File (optional)</label>
+                <input id="compliance-file" name="file" type="file" (change)="choose($event)" />
+                <span class="prj-hint" i18n="@@compliance.fileHint"
+                  >Scanned for malware; available once clean.</span
+                >
+              </div>
+              <div class="prj-field prj-span-all">
+                <label for="compliance-note" i18n="@@compliance.note">Note</label>
+                <textarea
+                  id="compliance-note"
+                  name="note"
+                  rows="2"
+                  maxlength="1000"
+                  [(ngModel)]="form.note"
+                ></textarea>
+              </div>
+            </div>
+            <div class="prj-form-actions">
+              <button
+                type="submit"
+                class="prj-btn"
+                [disabled]="busy() || !form.typeId"
+                i18n="@@compliance.save"
               >
-                <option value="" disabled i18n="@@compliance.chooseType">Choose…</option>
-                @for (type of activeTypes(); track type.id) {
-                  <option [value]="type.id">{{ type.name }}</option>
-                }
-              </select>
+                Record document
+              </button>
             </div>
-            <div class="prj-field">
-              <label for="compliance-number"
-                ><ng-container i18n="@@compliance.number">Number</ng-container>
-                @if (selectedType()?.requiresNumber) {
-                  <span class="prj-hint" i18n="@@compliance.requiredMark">(required)</span>
-                }
-              </label>
-              <input
-                id="compliance-number"
-                name="number"
-                dir="ltr"
-                maxlength="100"
-                [(ngModel)]="form.number"
-              />
-            </div>
-            <div class="prj-field">
-              <label for="compliance-issuer"
-                ><ng-container i18n="@@compliance.issuer">Issuer</ng-container>
-                @if (selectedType()?.requiresIssuer) {
-                  <span class="prj-hint" i18n="@@compliance.requiredMark">(required)</span>
-                }
-              </label>
-              <input
-                id="compliance-issuer"
-                name="issuer"
-                maxlength="200"
-                [(ngModel)]="form.issuer"
-              />
-            </div>
-            <div class="prj-field">
-              <label for="compliance-issued" i18n="@@compliance.issuedOn">Issued on</label>
-              <input
-                id="compliance-issued"
-                name="issuedOn"
-                type="date"
-                [(ngModel)]="form.issuedOn"
-              />
-            </div>
-            <div class="prj-field">
-              <label for="compliance-expires"
-                ><ng-container i18n="@@compliance.expiresOnLabel">Expires on</ng-container>
-                @if (selectedType()?.requiresExpiry) {
-                  <span class="prj-hint" i18n="@@compliance.requiredMark">(required)</span>
-                }
-              </label>
-              <input
-                id="compliance-expires"
-                name="expiresOn"
-                type="date"
-                [(ngModel)]="form.expiresOn"
-              />
-            </div>
-            <div class="prj-field">
-              <label for="compliance-file" i18n="@@compliance.file">File (optional)</label>
-              <input id="compliance-file" name="file" type="file" (change)="choose($event)" />
-              <span class="prj-hint" i18n="@@compliance.fileHint"
-                >Scanned for malware; available once clean.</span
-              >
-            </div>
-            <div class="prj-field prj-span-all">
-              <label for="compliance-note" i18n="@@compliance.note">Note</label>
-              <textarea
-                id="compliance-note"
-                name="note"
-                rows="2"
-                maxlength="1000"
-                [(ngModel)]="form.note"
-              ></textarea>
-            </div>
-          </div>
-          <div class="prj-form-actions">
-            <button
-              type="submit"
-              class="prj-btn"
-              [disabled]="busy() || !form.typeId"
-              i18n="@@compliance.save"
-            >
-              Record document
-            </button>
-          </div>
-        </fieldset>
-      </form>
+          </fieldset>
+        </form>
+      </details>
     }
 
     @if (item.history.length) {

@@ -66,7 +66,7 @@
       </div>
     } @else {
       <div class="prj-table-wrap" role="region" aria-labelledby="tenders-caption" tabindex="0">
-        <table class="prj-table tnd-table">
+        <table class="prj-table tnd-table prj-table--stack">
           <caption id="tenders-caption" class="prj-visually-hidden" i18n="@@tenders.caption">
             Tenders
           </caption>
@@ -76,16 +76,16 @@
               <th scope="col" i18n="@@tenders.colTender">Tender</th>
               <th scope="col" i18n="@@tenders.colStatus">Status</th>
               <th scope="col" i18n="@@tenders.colDeadlineTenderTime">Deadline (tender time)</th>
-              <th scope="col" i18n="@@tenders.colInvitations">Invitations</th>
+              <th scope="col" i18n="@@tenders.colBids">Bids</th>
               <th scope="col" i18n="@@project.updated">Last updated</th>
             </tr>
           </thead>
           <tbody>
             @for (item of page.items; track item.id) {
               <tr>
-                <td>
+                <td data-label="Reference" i18n-data-label="@@tenders.colReference">
                   <a [routerLink]="['/tenders', item.id]"
-                    ><bdi dir="ltr">{{ item.reference }}</bdi></a
+                    ><bdi dir="ltr" class="tnd-list-ref">{{ item.reference }}</bdi></a
                   >
                 </td>
                 <td>
@@ -96,7 +96,7 @@
                     <bdi dir="ltr">{{ item.workPackage.code }}</bdi>
                   </span>
                 </td>
-                <td>
+                <td data-label="Status" i18n-data-label="@@tenders.colStatus">
                   <span class="prj-chip tnd-status tnd-status--{{ item.status }}">{{
                     item.lifecycle || item.stage
                       ? stepLabel(item.lifecycle || item.stage)
@@ -112,19 +112,36 @@
                   }
                 </td>
                 <!-- Red-team B-098-1 (CF-098): the deadline in the tender's own zone, as on the tender page and in the emails; the UTC instant on hover. -->
+                <!-- Phase 3 SI-029: only a deadline that still matters; an awarded, cancelled or opened tender shows none. -->
                 <td
+                  data-label="Deadline (tender time)"
+                  i18n-data-label="@@tenders.colDeadlineTenderTime"
                   [attr.title]="
-                    item.submissionDeadlineUtc
+                    showsDeadline(item)
                       ? (item.submissionDeadlineUtc | businessDate: 'instant')
                       : null
                   "
                 >
-                  {{ deadline(item) }}
+                  @if (showsDeadline(item)) {
+                    {{ deadline(item) }}
+                  } @else {
+                    <span class="prj-hint" aria-hidden="true">—</span>
+                    <span class="prj-visually-hidden" i18n="@@tenders.noOpenDeadline"
+                      >No open deadline</span
+                    >
+                  }
                 </td>
-                <td>
-                  <span i18n="@@tenders.rowCounts"
-                    >Invited: {{ item.invitationCount }} · Intend to bid, not yet submitted:
-                    {{ item.intendsToBidCount }} · Declined: {{ item.declinedCount }}</span
+                <!-- Phase 3 SI-029: bids received out of those invited first (a count only — never bid content); the rest below. -->
+                <td data-label="Bids" i18n-data-label="@@tenders.colBids">
+                  @if (item.submittedCount !== undefined && item.submittedCount !== null) {
+                    <strong class="tnd-block" i18n="@@tenders.rowBids"
+                      ><bdi dir="ltr">{{ item.submittedCount }}</bdi> of
+                      <bdi dir="ltr">{{ item.invitationCount }}</bdi> invited</strong
+                    >
+                  }
+                  <span class="prj-hint tnd-block" i18n="@@tenders.rowCountsShort"
+                    >Intend to bid: {{ item.intendsToBidCount }} · Declined:
+                    {{ item.declinedCount }}</span
                   >
                   @if (item.failedDeliveryCount > 0) {
                     <span class="tnd-attention tnd-block"
@@ -135,7 +152,9 @@
                     >
                   }
                 </td>
-                <td>{{ item.updatedAtUtc | businessDate: 'instant' }}</td>
+                <td data-label="Last updated" i18n-data-label="@@project.updated">
+                  {{ item.updatedAtUtc | businessDate: 'instant' }}
+                </td>
               </tr>
             }
           </tbody>

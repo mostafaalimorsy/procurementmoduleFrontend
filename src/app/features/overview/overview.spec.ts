@@ -10,6 +10,18 @@ import arabicMessages from '../../../locale/messages.ar.json';
 import englishMessages from '../../../locale/messages.en.json';
 import { routes as appRoutes } from '../../app.routes';
 
+// Phase 3 SI-132: a company whose plan includes every capability; partial plans are tested below.
+const FULL_PLAN: readonly string[] = [
+  'projects',
+  'subcontractor_directory',
+  'sourcing',
+  'tendering',
+  'evaluation',
+  'award',
+  'performance',
+  'intelligence',
+];
+
 const health = {
   live: signal<'healthy'>('healthy'),
   ready: signal<'healthy'>('healthy'),
@@ -22,6 +34,7 @@ function configure(
   signedIn = true,
   roles: string[] = ['CompanyAdmin'],
   routes: Routes = [],
+  features: readonly string[] = FULL_PLAN,
 ) {
   const signedInIdentity = {
     userId: 'user-1',
@@ -49,7 +62,7 @@ function configure(
       },
       {
         provide: EntitlementsService,
-        useValue: { has: (feature: string) => feature === 'projects' },
+        useValue: { has: (feature: string) => features.includes(feature) },
       },
       { provide: ActivatedRoute, useValue: { queryParamMap: of(convertToParamMap(query)) } },
     ],
@@ -98,15 +111,20 @@ describe('Overview', () => {
         'overview.serviceConnection',
         'overview.connectionHelp',
         'statusIndicator.unavailable',
-        'shell.brand',
         'shell.footer',
         'shell.homeLabel',
         'locale.language',
         'title.workspace',
       ]),
     );
+    // The product name alone is the Latin brand in both languages (Subtriva identity: never translated or mirrored).
+    const brandOnly = new Set(['shell.footer']);
     for (const id of representativeIds) {
       expect(arabic[id], id).toBeTruthy();
+      if (brandOnly.has(id)) {
+        expect(arabic[id].trim(), id).toBe('Subtriva');
+        continue;
+      }
       expect(arabic[id].trim(), id).not.toBe(source[id].trim());
       expect(arabic[id], id).toMatch(/[\u0600-\u06ff]/);
     }
@@ -134,11 +152,9 @@ describe('Overview', () => {
   });
 
   it.each([
-    ['ApproverDirector', 'Awaiting my approval', '/#my-work-title'],
     ['ProcurementManager', 'Tenders in progress', '/tenders'],
     ['ProcurementOfficer', 'Sourcing and tenders', '/sourcing'],
-    ['TechnicalEvaluator', 'My evaluations', '/tenders?stage=Opened'],
-    ['CommercialQs', 'Leveling to complete', '/tenders?stage=Opened'],
+    ['CommercialQs', 'Tenders with opened bids', '/tenders?stage=Opened'],
     ['ProjectManager', 'Closeouts due', '/closeouts?status=Pending'],
   ])(
     'gives the %s one link that fits the role and no diagnostics panel (CF-016)',
@@ -152,6 +168,40 @@ describe('Overview', () => {
       expect(element.textContent).not.toContain('Service connection');
     },
   );
+
+  it.each(['ApproverDirector', 'TechnicalEvaluator'])(
+    'gives the %s no second link: their work is listed in My work (Phase 3 SI-064 / SI-132)',
+    (role) => {
+      const fixture = configure({}, true, [role]);
+      fixture.detectChanges();
+      expect((fixture.nativeElement as HTMLElement).querySelector('.role-link a')).toBeNull();
+    },
+  );
+
+  it.each([
+    ['ProcurementManager', ['projects', 'subcontractor_directory']],
+    ['ProcurementOfficer', ['projects', 'subcontractor_directory']],
+    [
+      'ProjectManager',
+      ['projects', 'subcontractor_directory', 'sourcing', 'tendering', 'evaluation', 'award'],
+    ],
+  ])(
+    'never sends the %s to a capability the plan does not include (Phase 3 SI-132)',
+    (role, features) => {
+      const fixture = configure({}, true, [role as string], [], features as string[]);
+      fixture.detectChanges();
+      const link = (fixture.nativeElement as HTMLElement).querySelector('.role-link a');
+      expect(link?.getAttribute('href')).toBe('/projects');
+    },
+  );
+
+  it('says in one line what the person does here (Phase 3 SI-064)', () => {
+    const fixture = configure({}, true, ['TechnicalEvaluator']);
+    fixture.detectChanges();
+    expect((fixture.nativeElement as HTMLElement).querySelector('.intro')?.textContent).toContain(
+      'You score the bids you are assigned to evaluate.',
+    );
+  });
 
   it('warns every signed-in role with a banner only when the service cannot be reached (CF-016)', () => {
     const fixture = configure({}, true, ['ProjectManager']);

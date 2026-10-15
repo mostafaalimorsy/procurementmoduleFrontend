@@ -19,9 +19,10 @@ import { CompanyPlan, featureLabel } from './tenant-identity.api';
               <bdi dir="ltr">03</bdi> / <span i18n="@@plan.index">PLAN</span>
             </p>
             <h2 id="plan-title" i18n="@@plan.title">Current plan</h2>
-            <p i18n="@@plan.intro">
-              Your workspace package and usage. Package terms are managed by the platform operator
-              and cannot be changed here.
+            <!-- Phase 3 SI-145: the tenant UI says "plan"; "package" means a work package. -->
+            <p i18n="@@plan.introPlan">
+              Your workspace plan and usage. Plan terms are managed by the platform operator and
+              cannot be changed here.
             </p>
           </div>
           <div class="plan-identity">
@@ -75,8 +76,8 @@ import { CompanyPlan, featureLabel } from './tenant-identity.api';
             }
           </p>
         } @else {
-          <p class="plan-features muted" i18n="@@plan.noFeatures">
-            No optional capabilities are included in this package yet.
+          <p class="plan-features muted" i18n="@@plan.noFeaturesPlan">
+            No optional capabilities are included in this plan yet.
           </p>
         }
         @if (companyPlan.notIncluded?.length) {

@@ -10,13 +10,22 @@
         aria-label="Platform Console home"
         i18n-aria-label="@@console.homeLabel"
       >
-        <span class="brand-mark" aria-hidden="true">SI</span>
-        <span class="brand-name"
-          ><span i18n="@@console.product">Subcontractor Intelligence</span><br /><strong
-            i18n="@@console.name"
-            >Platform Console</strong
-          ></span
-        >
+        <!-- The official Subtriva assets (dark variants on the ink header). -->
+        <img
+          class="brand-logo"
+          src="brand/subtriva-logo-dark.svg"
+          alt=""
+          width="470"
+          height="128"
+        />
+        <img
+          class="brand-icon"
+          src="brand/subtriva-icon-dark.svg"
+          alt=""
+          width="128"
+          height="128"
+        />
+        <span class="brand-name"><strong i18n="@@console.name">Platform Console</strong></span>
       </a>
       <span class="context-chip" i18n="@@console.context">Platform Operator</span>
       @if (session.identity()) {
@@ -143,7 +152,5 @@
       <router-outlet />
     }
   </main>
-  <footer class="shell-footer" i18n="@@console.footer">
-    Platform Console · Subcontractor Bid + Performance Intelligence
-  </footer>
+  <footer class="shell-footer" i18n="@@console.footer">Platform Console · Subtriva</footer>
 </div>

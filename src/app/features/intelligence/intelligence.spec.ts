@@ -445,7 +445,8 @@ describe('Next-project candidate evidence', () => {
 
 describe('Home dashboard', () => {
   it('lists what needs attention with links to the work, and shows no section the server withheld', async () => {
-    const { http } = configure();
+    // A reader who acts in procurement (Phase 3 SI-064: others read the list as information).
+    const { http } = configure({}, ['Intelligence.View', 'Tenders.Edit']);
     const view = TestBed.createComponent(DashboardView);
     view.detectChanges();
     const withheld = { ...adminDashboard(), decisions: null, evidence: null };
@@ -659,6 +660,9 @@ describe('Home dashboard', () => {
     expect(shown).toContain('Nothing needs your attention right now.');
     expect(shown).toContain('Where your evidence is');
     expect(shown).toContain('Limited evidence');
+    // Phase 3 SI-128: the strength is the best-covered firm's, and the firm count is of firms with a finalized closeout.
+    expect(shown).toContain('best-covered firm:Limited evidence');
+    expect(shown).toContain('firms with a finalized closeout');
     expect(shown).toContain('Recent outcomes');
     expect(shown).toContain('ACME-01 · ACME Contracting');
   });
@@ -786,6 +790,82 @@ describe('My work due dates and the overdue round (CF-010)', () => {
   });
 });
 
+describe('Search results in order (Phase 3 SI-133)', () => {
+  it('leads with an exact reference as one object, orders groups by results and names the empty types once', () => {
+    const { http, params } = configure({ q: 'a' });
+    const page = TestBed.createComponent(SearchPage);
+    page.detectChanges();
+    params.next(convertToParamMap({ q: 'TND-2026-0001' }));
+    page.detectChanges();
+    http
+      .expectOne((candidate) => candidate.url === '/api/v1/search')
+      .flush({
+        query: 'TND-2026-0001',
+        type: null,
+        groups: [
+          { type: 'Subcontractors', total: 0, page: 1, pageSize: 5, items: [] },
+          { type: 'Projects', total: 0, page: 1, pageSize: 5, items: [] },
+          {
+            type: 'Tenders',
+            total: 1,
+            page: 1,
+            pageSize: 5,
+            items: [
+              {
+                type: 'Tenders',
+                id: 't1',
+                code: 'TND-2026-0001',
+                title: 'HVAC works',
+                subtitle: null,
+                status: 'Published',
+                category: null,
+              },
+            ],
+          },
+          {
+            type: 'Closeouts',
+            total: 2,
+            page: 1,
+            pageSize: 5,
+            items: [
+              {
+                type: 'Closeouts',
+                id: 'a1',
+                code: 'TND-2026-0001',
+                title: 'HVAC works',
+                subtitle: null,
+                status: null,
+                category: null,
+              },
+              {
+                type: 'Closeouts',
+                id: 'a2',
+                code: 'TND-2026-0011',
+                title: 'Plumbing',
+                subtitle: null,
+                status: null,
+                category: null,
+              },
+            ],
+          },
+        ],
+      });
+    page.detectChanges();
+    const element = page.nativeElement as HTMLElement;
+    const exact = element.querySelector('[data-testid="search-exact"]')!;
+    expect(exact.querySelectorAll('li')).toHaveLength(2);
+    const headings = [...element.querySelectorAll('.srch-group h2')].map((h) =>
+      text(h as HTMLElement),
+    );
+    expect(headings[0]).toContain('Closeouts');
+    expect(headings[1]).toContain('Tenders');
+    expect(headings.join(' ')).not.toContain('Subcontractors');
+    expect(text(element.querySelector('[data-testid="search-empty-types"]')!)).toContain(
+      'No match in:',
+    );
+  });
+});
+
 describe('Search page', () => {
   it('waits for two characters, then searches every visible type and offers the rest of a type', async () => {
     const { http, params } = configure({ q: 'a' });
@@ -827,7 +907,9 @@ describe('Search page', () => {
     const shown = text(element);
     expect(shown).toContain('Subcontractors (7)');
     expect(shown).toContain('ACME Contracting');
-    expect(shown).toContain('No match.');
+    // Phase 3 SI-133: an empty type is named once, not given its own empty section.
+    expect(shown).toContain('No match in: Tenders.');
+    expect(element.querySelector('#search-group-Tenders')).toBeNull();
     expect(element.querySelector('#search-group-Closeouts')).toBeNull();
     expect([...element.querySelectorAll('a')].map((link) => link.getAttribute('href'))).toContain(
       '/subcontractors/s1',
@@ -1068,7 +1150,10 @@ describe('Audit log page: request context (CF-122)', () => {
     const missing = [...element.querySelectorAll('[data-testid="audit-request-missing"]')];
     expect(missing).toHaveLength(1);
     expect(text(missing[0] as HTMLElement).trim()).toBe('Request not recorded');
-    expect(text(missing[0].closest('li') as HTMLElement)).toContain('Nadia Khalil');
+    // Phase 3 SI-093: identifiers are behind a closed Details disclosure, not printed on every entry.
+    expect((missing[0].closest('details') as HTMLDetailsElement).open).toBe(false);
+    // Phase 3 SI-093: an entry is a table row now.
+    expect(text(missing[0].closest('tr') as HTMLElement)).toContain('Nadia Khalil');
   });
 });
 
@@ -1134,7 +1219,7 @@ describe('Intelligence read at its own precision (CF-026, CF-124, CF-125, CF-126
     expect(samplePrecision(1, 'percent')).toBe(1);
   });
 
-  it('shows two ratings as their median with the range, and a percentage of two at one decimal', async () => {
+  it('shows two ratings and two percentages as their values, never as a midpoint (Phase 3 SI-115)', async () => {
     const base = fullProfile();
     const { element } = await profile({
       ...base,
@@ -1145,10 +1230,11 @@ describe('Intelligence read at its own precision (CF-026, CF-124, CF-125, CF-126
       },
     });
     const shown = text(element);
-    expect(shown).toContain('3.5 / 5');
-    expect(shown).toContain('median of 2 · 3–4');
-    expect(shown).toContain('+6.7 %');
-    expect(shown).not.toContain('6.67');
+    expect(shown).toContain('3 and 4 / 5');
+    expect(shown).not.toContain('3.5 / 5');
+    expect(shown).toContain('+5.0 % and +8.3 %');
+    expect(shown).not.toContain('+6.7 %');
+    expect(shown).toContain('two projects — too few for a central value');
   });
 
   it('measures time to first bid against the bidding window, with elapsed time second', async () => {
@@ -1271,6 +1357,134 @@ describe('Candidate evidence counts (CF-029, CF-030)', () => {
     const responses = element.querySelector('[data-testid="candidate-responses"]')!;
     expect(text(responses)).toContain('submitted 2 · declined 1 · no response 1 (of 4 valid)');
     expect(responses.getAttribute('title')).toContain('counts submissions only');
+    // Phase 3 SI-026: each label is followed by exactly one value, so no pair shifts into the wrong column of the grid.
+    const facts = element.querySelector('.ce-facts')!;
+    const kinds = Array.from(facts.children).map((child) => child.tagName);
+    kinds.forEach((kind, index) => {
+      if (kind === 'DT') expect(kinds[index + 1]).toBe('DD');
+      if (kind === 'DD') expect(kinds[index - 1]).toBe('DT');
+    });
+    expect(facts.querySelector('dd [data-testid="candidate-similar"]')).not.toBeNull();
     http.verify();
+  });
+});
+
+describe('Award state and history evidence (Phase 3 SI-048, SI-129, SI-114, SI-046)', () => {
+  it('counts tenders closed without an award apart and marks their participation rows (SI-048)', async () => {
+    const base = fullProfile();
+    const [first, second] = base.recentParticipation;
+    const { element } = await profile({
+      ...base,
+      awards: { ...base.awards, awaitingDecision: 1, closedWithoutAward: 2 },
+      recentParticipation: [{ ...first, tenderClosedWithoutAward: true }, second],
+    });
+    expect(text(element.querySelector('[data-testid="closed-without-award-count"]')!)).toBe(
+      'closed without an award: 2',
+    );
+    expect(text(element)).toContain('awaiting a decision: 1');
+    const chips = element.querySelectorAll('[data-testid="closed-without-award"]');
+    expect(chips.length).toBe(1);
+    expect(text(chips[0])).toBe('Tender closed without an award');
+  });
+
+  it('labels a recent award by its state now, never a declined or withdrawn one as "Award issued" (SI-129)', () => {
+    const { http } = configure();
+    const view = TestBed.createComponent(DashboardView);
+    view.detectChanges();
+    const dashboard = adminDashboard();
+    const award = dashboard.decisions!.recentAwards[0];
+    http.expectOne('/api/v1/dashboard').flush({
+      ...dashboard,
+      decisions: {
+        ...dashboard.decisions!,
+        recentAwards: [
+          { ...award, id: 'a1', status: 'Declined' },
+          { ...award, id: 'a2', status: 'Withdrawn' },
+          { ...award, id: 'a3', status: 'AwaitingResponse' },
+          { ...award, id: 'a4', status: 'NotRecorded' },
+        ],
+      },
+    });
+    view.detectChanges();
+    http
+      .match('/api/v1/dashboard/my-work')
+      .forEach((request) =>
+        request.flush({ generatedAtUtc: '2026-10-01T10:00:00Z', items: [], total: 0, kinds: {} }),
+      );
+    view.detectChanges();
+    const rows = [
+      ...(view.nativeElement as HTMLElement).querySelectorAll(
+        'section[aria-labelledby="dash-recent"] li',
+      ),
+    ].filter((row) => !text(row).includes('Closeout finalized'));
+    expect(rows.map((row) => text(row.querySelector('.prj-chip')!).trim())).toEqual([
+      'Award declined',
+      'Award withdrawn',
+      'Award issued',
+      'Award issued',
+    ]);
+    expect(text(rows[2])).toContain("Awaiting the subcontractor's answer");
+    expect(text(rows[3])).not.toContain('answer not recorded');
+    http.verify();
+  });
+
+  it('does not compare a project that ended early on schedule or cost (SI-114)', async () => {
+    const base = fullProfile();
+    const delivery = base.delivery!;
+    const [first, ...rest] = delivery.outcomes;
+    const { element } = await profile({
+      ...base,
+      delivery: {
+        ...delivery,
+        outcomes: [
+          {
+            ...first,
+            outcomeType: 'TerminatedForDefault',
+            percentComplete: 40,
+            scheduleOutcome: 'WithinDuration',
+            scheduleVariancePercent: '-50.00',
+            costVariancePercent: '-60.00',
+          },
+          ...rest,
+        ],
+      },
+    });
+    const row = element.querySelector('[data-testid="ended-early"]')!.closest('li')!;
+    expect(text(row)).toContain('not compared — ended early at 40 %');
+    expect(text(row)).toContain('Terminated for default');
+    expect(text(row)).not.toContain('−50.00');
+    expect(text(row)).not.toContain('−60.00');
+  });
+
+  it('shows the rule-v3 composite as the one a partial-history recommendation weighs, beside the stored mean (SI-046)', async () => {
+    const base = fullProfile();
+    const { element } = await profile({
+      ...base,
+      delivery: {
+        ...base.delivery!,
+        outcomeScore: '65',
+        outcomeScoreV3: '67',
+        outcomeScoreV3Rule: 'performance-outcome-v3',
+      },
+    });
+    const v3 = element.querySelector('[data-testid="intel-composite-v3"]')!;
+    expect(text(v3)).toContain('used when a recommendation weighs partial history');
+    expect(text(v3)).toContain('67 / 100');
+    expect(text(v3)).toContain('performance-outcome-v3');
+    const stored = element.querySelector('[data-testid="intel-composite"]')!;
+    expect(text(stored)).toContain('65 / 100');
+    expect(text(stored)).toContain('mean of the stored project scores');
+  });
+
+  it('keeps the single composite label when the server sends no rule-v3 figure (SI-046)', async () => {
+    const base = fullProfile();
+    const { element } = await profile({
+      ...base,
+      delivery: { ...base.delivery!, outcomeScore: '82', outcomeScoreV3: null },
+    });
+    expect(element.querySelector('[data-testid="intel-composite-v3"]')).toBeNull();
+    expect(text(element.querySelector('[data-testid="intel-composite"]')!)).toContain(
+      'used when a recommendation weighs history',
+    );
   });
 });

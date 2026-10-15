@@ -6,6 +6,7 @@ import { BusinessDatePipe } from '../../core/localization/business-format';
 import { LocaleService } from '../../core/localization/locale.service';
 import { parseMoney } from '../../core/localization/money';
 import { requestKey } from '../../shared/util/request-key';
+import { RecordLinks } from '../../shared/navigation/record-links';
 import { money } from '../evaluation/evaluation-format';
 import { DirectoryApi, SubcontractorSummary, TradeRef } from '../subcontractors/subcontractors.api';
 import {
@@ -140,8 +141,11 @@ import {
         </form>
       } @else if (record(); as view) {
         <h1 id="retro-page-title">
-          <bdi dir="ltr" class="tnd-code">{{ view.subcontractorCode }}</bdi>
-          <bdi>{{ view.subcontractorName }}</bdi>
+          <!-- Phase 3 SI-066: the firm links to its profile for readers who can open it. -->
+          <a [routerLink]="links.subcontractor(view.subcontractorId)"
+            ><bdi dir="ltr" class="tnd-code">{{ view.subcontractorCode }}</bdi>
+            <bdi>{{ view.subcontractorName }}</bdi></a
+          >
         </h1>
         <p>
           <span class="prj-chip">{{ statusLabel(view.status) }}</span>
@@ -559,6 +563,7 @@ export class RetrospectivePage implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   readonly locale = inject(LocaleService).locale;
+  readonly links = inject(RecordLinks);
   readonly badge = retrospectiveBadge();
   readonly statusLabel = retrospectiveStatusLabel;
   readonly eventLabel = retrospectiveEventLabel;

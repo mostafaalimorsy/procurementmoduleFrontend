@@ -69,6 +69,12 @@
                 [class.dc-state--muted]="item.lifecycle === 'Pending'"
                 >{{ lifecycleLabel(item.lifecycle) }}</span
               >
+              <!-- Phase 3 SI-066: the firm's profile, beside the closeout the card title opens. -->
+              @if (links.subcontractor(item.subcontractorId); as profile) {
+                <a [routerLink]="profile" data-testid="closeout-firm-profile"
+                  ><bdi dir="ltr" class="tnd-code">{{ item.subcontractorCode }}</bdi></a
+                >
+              }
             </p>
             <h2 class="pf-card-title">
               <a [routerLink]="['/closeouts', item.awardId]"
@@ -78,13 +84,20 @@
             <dl>
               <dt i18n="@@closeouts.tender">Tender</dt>
               <dd>
-                <bdi dir="ltr" class="tnd-code">{{ item.tenderReference }}</bdi>
+                <!-- Phase 3 SI-066: up the chain to the tender, project and work package (text for a reader who cannot open them). -->
+                <a [routerLink]="links.tender(item.tenderId)"
+                  ><bdi dir="ltr" class="tnd-code">{{ item.tenderReference }}</bdi></a
+                >
               </dd>
               <dt i18n="@@closeouts.package">Work package</dt>
               <dd>
-                <bdi dir="ltr" class="tnd-code">{{ item.projectCode }}</bdi>
-                <bdi dir="ltr" class="tnd-code">{{ item.workPackageCode }}</bdi>
-                <bdi>{{ item.workPackageTitle }}</bdi>
+                <a [routerLink]="links.project(item.projectId)"
+                  ><bdi dir="ltr" class="tnd-code">{{ item.projectCode }}</bdi></a
+                >
+                <a [routerLink]="links.workPackage(item.workPackageId)"
+                  ><bdi dir="ltr" class="tnd-code">{{ item.workPackageCode }}</bdi>
+                  <bdi>{{ item.workPackageTitle }}</bdi></a
+                >
               </dd>
               <dt i18n="@@closeouts.category">Category</dt>
               <dd>{{ categoryLabel(item.category) }}</dd>

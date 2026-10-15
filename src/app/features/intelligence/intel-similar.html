@@ -38,20 +38,36 @@
               <span class="prj-chip">{{ reasonLabel(reason) }}</span>
             }
           </span>
-          <span>{{ scheduleLabel(item.outcome.scheduleOutcome) }}</span>
-          @if (item.outcome.scheduleVariancePercent) {
-            <bdi dir="ltr">{{ percent(item.outcome.scheduleVariancePercent) }}</bdi>
+          <!-- Phase 3 SI-114: a project that did not complete says how far it got instead of printing variances. -->
+          @if (item.outcome.outcomeType && item.outcome.outcomeType !== 'Completed') {
+            @if (
+              item.outcome.percentComplete !== null && item.outcome.percentComplete !== undefined
+            ) {
+              <span data-testid="ended-early" i18n="@@intel.notComparedEndedEarlyAt"
+                >not compared — ended early at
+                <bdi dir="ltr">{{ item.outcome.percentComplete }} %</bdi></span
+              >
+            } @else {
+              <span data-testid="ended-early" i18n="@@intel.notComparedEndedEarly"
+                >not compared — ended early</span
+              >
+            }
+          } @else {
+            <span>{{ scheduleLabel(item.outcome.scheduleOutcome) }}</span>
+            @if (item.outcome.scheduleVariancePercent) {
+              <bdi dir="ltr">{{ percent(item.outcome.scheduleVariancePercent) }}</bdi>
+            }
+            @if (access().commercial && item.outcome.costVariancePercent) {
+              <span i18n="@@intel.costShort"
+                >cost <bdi dir="ltr">{{ percent(item.outcome.costVariancePercent) }}</bdi></span
+              >
+            }
+            <app-variance-cause
+              [cause]="item.outcome.variationCause"
+              [share]="item.outcome.variationSharePercent"
+              [residual]="item.outcome.residualCostVariancePercent"
+            />
           }
-          @if (access().commercial && item.outcome.costVariancePercent) {
-            <span i18n="@@intel.costShort"
-              >cost <bdi dir="ltr">{{ percent(item.outcome.costVariancePercent) }}</bdi></span
-            >
-          }
-          <app-variance-cause
-            [cause]="item.outcome.variationCause"
-            [share]="item.outcome.variationSharePercent"
-            [residual]="item.outcome.residualCostVariancePercent"
-          />
           <span i18n="@@intel.ratingsShort"
             >quality <bdi dir="ltr">{{ item.outcome.qualityRating }}</bdi> · HSE
             <bdi dir="ltr">{{ item.outcome.hseRating }}</bdi></span

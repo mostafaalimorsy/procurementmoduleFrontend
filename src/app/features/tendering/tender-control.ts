@@ -34,6 +34,8 @@ import { InvitationDialog } from './invitation-dialog';
 import { TenderAddenda } from './tender-addenda';
 import { TenderClarifications } from './tender-clarifications';
 import { OutsideBidsPanel } from './outside-bids';
+import { NgTemplateOutlet } from '@angular/common';
+import { AwardSummaryBlock } from '../decision/award-summary';
 import {
   REASON_MAX,
   REASON_MIN,
@@ -49,6 +51,7 @@ import {
   isStale,
   tenderProblemMessage,
 } from './tendering.api';
+import { savedState } from '../../core/a11y/saved-notice';
 
 /** While emails are queued the screen refreshes itself this often, and for at most this many times. */
 const POLL_MS = 4000;
@@ -72,6 +75,8 @@ const POLL_LIMIT = 30;
     TenderClarifications,
     OutsideBidsPanel,
     NotInPlan,
+    NgTemplateOutlet,
+    AwardSummaryBlock,
   ],
   templateUrl: './tender-control.html',
   styleUrl: './tendering.scss',
@@ -84,6 +89,16 @@ export class TenderControl {
   readonly locale = inject(LocaleService).locale;
 
   readonly tender = input.required<TenderDetail>();
+  /** Phase 3 SI-059: bids can still arrive — not opened, awarded, cancelled or closed. */
+  readonly biddingLive = computed(() => {
+    const tender = this.tender();
+    return (
+      !tender.closure?.bidsOpenedAtUtc &&
+      !tender.awardedAtUtc &&
+      tender.status !== 'Cancelled' &&
+      !['Awarded', 'Cancelled', 'ClosedForRetender', 'Opened'].includes(tender.stage ?? '')
+    );
+  });
   readonly changed = output<TenderDetail>();
   readonly announce = output<string>();
   readonly reloadRequested = output<string>();
@@ -155,7 +170,7 @@ export class TenderControl {
     if (this.busy()) return;
     this.busy.set(true);
     this.api.startRetender(this.tender().id).subscribe({
-      next: (draft) => void this.router.navigate(['/tenders', draft.id]),
+      next: (draft) => void this.router.navigate(['/tenders', draft.id], savedState('created')),
       error: (error: unknown) => {
         this.busy.set(false);
         this.error.set(tenderProblemMessage(error));
@@ -517,8 +532,25 @@ export class TenderControl {
         : $localize`:@@control.noResponseExpired:No response (deadline passed)`;
     if (closure && invitation.status === 'BidStarted')
       return $localize`:@@control.draftNotSubmitted:Started, not submitted (tender closed)`;
+    // Phase 3 SI-107: the server marks an unanswered invitation expired only while the tender is published; once it is cancelled or
+    // closed without an award, bidding is over too — the firm never answered, so it no longer reads "No response yet".
+    if (
+      this.biddingClosed() &&
+      (invitation.status === 'Invited' || invitation.status === 'IntendsToBid')
+    )
+      return $localize`:@@control.noResponseBiddingClosed:No response (bidding closed)`;
     return this.statusLabel(invitation.status);
   }
+
+  /** Phase 3 SI-107: bidding is over — the tender closed (deadline or early), was cancelled, or was closed without an award. */
+  readonly biddingClosed = computed(() => {
+    const tender = this.tender();
+    return (
+      !!tender.closure ||
+      tender.status === 'Cancelled' ||
+      tender.status === 'ClosedWithoutActiveAward'
+    );
+  });
 
   /** A manual refresh after automatic refreshing stopped; it also restarts the automatic checks. */
   checkAgain(): void {

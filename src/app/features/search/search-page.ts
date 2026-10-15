@@ -15,10 +15,13 @@ import {
   SEARCH_STATUSES,
   SEARCH_TYPES,
   SearchApi,
+  SearchGroup,
   SearchHit,
   SearchResult,
   SearchType,
 } from './search.api';
+import { formatList } from '../../core/localization/labels';
+import { LocaleService } from '../../core/localization/locale.service';
 
 /**
  * Company-wide search (Part 12): subcontractors, projects, work packages, tenders and closeouts in one place, through each module's own
@@ -36,6 +39,7 @@ export class SearchPage implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   readonly types = SEARCH_TYPES;
+  private readonly locale = inject(LocaleService).locale;
   readonly result = signal<SearchResult | null>(null);
   readonly loading = signal(false);
   readonly error = signal('');
@@ -129,6 +133,40 @@ export class SearchPage implements OnInit, OnDestroy {
       default:
         return ['/closeouts', hit.id];
     }
+  }
+
+  /**
+   * Phase 3 SI-133: the groups with results first, most results first (a fixed order put empty groups at the top); one type
+   * asked for keeps its single group.
+   */
+  ordered(view: SearchResult): readonly SearchGroup[] {
+    if (view.type) return view.groups;
+    return view.groups
+      .filter((group) => group.total > 0)
+      .map((group, index) => ({ group, index }))
+      .sort((a, b) => b.group.total - a.group.total || a.index - b.index)
+      .map((item) => item.group);
+  }
+
+  /** Phase 3 SI-133: the types with no match, named once in one line instead of an empty section each. */
+  empty(view: SearchResult): string {
+    if (view.type) return '';
+    return formatList(
+      view.groups.filter((group) => group.total === 0).map((group) => this.typeLabel(group.type)),
+      this.locale,
+    );
+  }
+
+  /**
+   * Phase 3 SI-133: the records whose reference is exactly what was searched — a tender and its closeout share one — shown
+   * first as one object with a link to each record.
+   */
+  exact(view: SearchResult): readonly SearchHit[] {
+    const query = view.query.trim().toLowerCase();
+    if (!query) return [];
+    return view.groups.flatMap((group) =>
+      group.items.filter((hit) => hit.code.toLowerCase() === query),
+    );
   }
 
   totalPages(total: number, pageSize: number): number {

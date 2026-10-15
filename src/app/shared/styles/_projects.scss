@@ -12,7 +12,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-block-end: 1.5rem;
+  margin-block-end: 0.75rem;
   color: var(--color-muted);
   font-size: 0.78rem;
 }
@@ -36,15 +36,16 @@
   flex-wrap: wrap;
   align-items: end;
   justify-content: space-between;
-  gap: 1.5rem;
-  padding-block-end: 1.5rem;
+  gap: 1rem 1.5rem;
+  padding-block-end: 1rem;
   border-block-end: 2px solid var(--color-ink);
 }
 
 .prj-head h1 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: clamp(1.9rem, 5vw, 3.2rem);
+  /* Phase 3 SI-079: a title, not a poster — the work below it starts within the first screen. */
+  font-size: clamp(1.6rem, 3.6vw, 2.4rem);
   font-weight: 400;
   letter-spacing: -0.04em;
   line-height: 1.05;
@@ -598,3 +599,144 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+// ---- Phase 3 SI-140: one visual system ------------------------------------------------------------------------------
+
+// A sortable column header reads as a header (same type, no box) with its sort direction as a mark, not as a button among
+// plain headers. The state stays in the cell's aria-sort for assistive technology.
+.prj-table th[aria-sort] > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-block-size: 1.5rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+
+.prj-table th[aria-sort] > button::after {
+  content: '↕';
+  opacity: 0.45;
+}
+
+.prj-table th[aria-sort='ascending'] > button::after {
+  content: '▲';
+  opacity: 1;
+}
+
+.prj-table th[aria-sort='descending'] > button::after {
+  content: '▼';
+  opacity: 1;
+}
+
+.prj-table th[aria-sort] > button:hover {
+  color: var(--color-ink);
+}
+
+// A section heading looks the same whether or not it sits in a heading row with actions.
+.prj-section > h2,
+.prj-section > header > h2,
+.prj-section-head h2 {
+  margin: 0 0 1rem;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1.25;
+}
+
+.prj-section-head h2 {
+  margin: 0;
+}
+
+// ---- Phase 3 SI-142: nothing widens a phone screen -------------------------------------------------------------------
+
+// A long value (an identifier, an Arabic firm name) wraps inside its definition instead of widening the page.
+dd,
+.prj-card,
+.prj-summary dd {
+  overflow-wrap: anywhere;
+  min-inline-size: 0;
+}
+
+// Phase 3 SI-142: a table read as labelled cards — each cell a labelled row, so no column hides off-screen.
+@mixin stacked-table($table) {
+  #{$table} thead {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  #{$table},
+  #{$table} tbody,
+  #{$table} tr,
+  #{$table} td {
+    display: block;
+    inline-size: 100%;
+  }
+
+  #{$table} tr {
+    padding-block: 0.6rem;
+    border-block-end: 1px solid var(--color-border);
+  }
+
+  #{$table} tbody tr:last-child {
+    border-block-end: 0;
+  }
+
+  #{$table} td {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 38%) minmax(0, 1fr);
+    gap: 0.75rem;
+    padding: 0.3rem 0.85rem;
+    border: 0;
+    text-align: start;
+    // A long address or code breaks inside its card rather than widening it.
+    overflow-wrap: anywhere;
+  }
+
+  #{$table} td > * {
+    min-inline-size: 0;
+  }
+
+  #{$table} td[data-label]::before {
+    content: attr(data-label);
+    color: var(--color-muted);
+    font-size: 0.74rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  // A cell without a label (the row's own name) spans the card.
+  #{$table} td:not([data-label]) {
+    grid-template-columns: minmax(0, 1fr);
+    font-weight: 600;
+  }
+}
+
+@media (max-width: 40rem) {
+  // A status chip may wrap rather than push its row wider than the screen.
+  .prj-chip {
+    max-inline-size: 100%;
+    white-space: normal;
+  }
+
+  // Identifiers keep their hyphens together on wider screens; on a phone they may break rather than overflow (.tnd-code: see
+  // _utilities.scss, which loads after this file).
+  .prj-table code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  // A list table stacks into cards below 600 px.
+  @include stacked-table('.prj-table--stack');
+}
+
+// Phase 3 SI-024: a table in a narrow side column is read as cards at every width (it would otherwise scroll sideways).
+@include stacked-table('.prj-table--cards');

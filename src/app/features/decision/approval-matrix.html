@@ -2,7 +2,8 @@
   <div class="prj-head">
     <div>
       <p class="prj-eyebrow" i18n="@@rpolicy.eyebrow">Recommendation and award</p>
-      <h1 i18n="@@matrix.title">Approval matrix</h1>
+      <!-- Phase 3 SI-145: the page is named as the menu names it. -->
+      <h1 i18n="@@matrix.titleRules">Approval rules</h1>
       <p class="prj-hint" i18n="@@matrix.intro">
         Which approvals an award decision needs. The first active rule that matches, by priority
         (lowest number first), decides the route. When no rule matches, the default route asks for
@@ -116,6 +117,45 @@
           </tbody>
         </table>
       </div>
+      <!-- Phase 3 SI-122: what the matrix decides across the value axis; gaps follow the default route. -->
+      <section class="prj-section mx-coverage" aria-labelledby="matrix-coverage">
+        <h2 id="matrix-coverage" i18n="@@matrix.coverageTitle">What the rules cover</h2>
+        <p class="prj-hint" i18n="@@matrix.coverageIntro">
+          Company-wide rules by decision value. Rules for one project or category apply to those
+          decisions only and are not drawn here.
+        </p>
+        @for (item of coverage(); track item.currency) {
+          <h3>
+            @if (item.currency) {
+              <bdi dir="ltr">{{ item.currency }}</bdi>
+            } @else {
+              <span i18n="@@matrix.coverageAnyCurrency">Any currency</span>
+            }
+          </h3>
+          <ol class="mx-ruler" role="list">
+            @for (band of item.bands; track $index) {
+              <li [class.mx-gap]="!band.rule">
+                <span class="mx-range"
+                  ><bdi>{{ bandRange(band) }}</bdi></span
+                >
+                @if (band.rule) {
+                  <bdi class="mx-rule">{{ band.rule }}</bdi>
+                } @else {
+                  <strong class="tnd-attention" i18n="@@matrix.gapBand"
+                    >No rule — the default route applies (one Approver/Director)</strong
+                  >
+                }
+              </li>
+            }
+          </ol>
+          @for (shadow of item.shadows; track $index) {
+            <p class="tnd-attention" role="note" i18n="@@matrix.shadowed">
+              <bdi>{{ shadow.rule }}</bdi> never decides <bdi>{{ bandRange(shadow) }}</bdi
+              >: <bdi>{{ shadow.by }}</bdi> is checked first.
+            </p>
+          }
+        }
+      </section>
     } @else {
       <p class="prj-note" i18n="@@matrix.none">
         No approval rule yet: every decision needs one approval by an Approver/Director.
@@ -281,6 +321,25 @@
         A decision that departs from the recommendation always needs an approval by someone other
         than its submitter, whatever this rule says.
       </p>
+    }
+    <!-- Phase 3 SI-122: the gaps and shadowed rules the matrix would have with this rule as entered. -->
+    @for (item of draftCoverage(); track item.currency) {
+      @for (gap of item.gaps; track $index) {
+        <p class="tnd-attention" role="note" data-testid="draft-gap" i18n="@@matrix.draftGap">
+          With this rule, decisions <bdi>{{ bandRange(gap) }}</bdi>
+          @if (item.currency) {
+            in <bdi dir="ltr">{{ item.currency }}</bdi>
+          }
+          match no rule and follow the default route (one Approver/Director).
+        </p>
+      }
+      @for (shadow of item.shadows; track $index) {
+        <p class="tnd-attention" role="note" data-testid="draft-shadow" i18n="@@matrix.draftShadow">
+          With this rule, <bdi>{{ shadow.rule }}</bdi> never decides
+          <bdi>{{ bandRange(shadow) }}</bdi
+          >: <bdi>{{ shadow.by }}</bdi> is checked first.
+        </p>
+      }
     }
     @if (formError()) {
       <p class="prj-error-text" role="alert">{{ formError() }}</p>

@@ -92,9 +92,9 @@ import { SessionService, TenantMfaChallenge } from '../../core/auth/session.serv
             [(ngModel)]="code"
           />
           @if (error()) {
-            <p role="alert" class="error">{{ error() }}</p>
+            <p id="tenant-login-error" role="alert" class="error" tabindex="-1">{{ error() }}</p>
           }
-          <button class="primary" [disabled]="codeForm.invalid || busy()">
+          <button class="primary" [disabled]="busy()">
             @if (busy()) {
               <span i18n="@@login.busy">Signing in…</span>
             } @else {
@@ -146,9 +146,10 @@ import { SessionService, TenantMfaChallenge } from '../../core/auth/session.serv
             [(ngModel)]="password"
           />
           @if (error()) {
-            <p role="alert" class="error">{{ error() }}</p>
+            <p id="tenant-login-error" role="alert" class="error" tabindex="-1">{{ error() }}</p>
           }
-          <button class="primary" [disabled]="form.invalid || busy()">
+          <!-- Phase 3 SI-143: Sign in is never greyed out without a reason; an incomplete form is explained on submit. -->
+          <button class="primary" [disabled]="busy()">
             @if (busy()) {
               <span i18n="@@login.busy">Signing in…</span>
             } @else {
@@ -181,7 +182,11 @@ export class TenantLogin {
   submit(): void {
     if (this.busy()) return;
     if (!this.email.trim() || !this.password) {
-      this.error.set(knownProductProblem({ code: 'validation.required' })!);
+      this.fail(knownProductProblem({ code: 'validation.required' })!);
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(this.email.trim())) {
+      this.fail($localize`:@@login.validEmail:Enter a valid email address.`);
       return;
     }
     this.busy.set(true);
@@ -200,9 +205,7 @@ export class TenantLogin {
       },
       error: () => {
         this.busy.set(false);
-        this.error.set(
-          $localize`:@@login.failed:Sign in failed. Check your credentials and try again.`,
-        );
+        this.fail($localize`:@@login.failed:Sign in failed. Check your credentials and try again.`);
       },
     });
   }
@@ -210,6 +213,10 @@ export class TenantLogin {
   /** CF-065 (ADR-145): the authenticator or recovery code. */
   verify(challenge: TenantMfaChallenge): void {
     if (this.busy()) return;
+    if (!this.code.trim()) {
+      this.fail(knownProductProblem({ code: 'validation.required' })!);
+      return;
+    }
     this.busy.set(true);
     this.error.set('');
     const code = this.code.trim();
@@ -226,12 +233,12 @@ export class TenantLogin {
         // Re-audit R-05: once the code budget is spent the step is over — back to the password, with the wait named.
         if ((error as { status?: number } | null)?.status === 429) {
           this.step.set(null);
-          this.error.set(
+          this.fail(
             $localize`:@@problem.mfaExhausted:Too many codes were not accepted. Wait 15 minutes, then sign in again.`,
           );
           return;
         }
-        this.error.set(
+        this.fail(
           $localize`:@@mfa.failed:That code was not accepted. Enter the current code, or start again if this step expired.`,
         );
       },
@@ -241,6 +248,12 @@ export class TenantLogin {
   continueAfterCodes(): void {
     this.recoveryCodes.set(null);
     this.continue();
+  }
+
+  /** Phase 3 SI-143: the error is shown and receives the focus, so a keyboard or screen-reader user lands on it. */
+  private fail(message: string): void {
+    this.error.set(message);
+    setTimeout(() => document.getElementById('tenant-login-error')?.focus());
   }
 
   restart(): void {

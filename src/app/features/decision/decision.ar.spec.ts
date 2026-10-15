@@ -83,12 +83,12 @@ describe('Decision and negotiation in Arabic', () => {
       .flush(pending({ approvalBlocker: 'self_approval' }));
     page.detectChanges();
     const shown = text(page.nativeElement as HTMLElement);
-    expect(shown).toContain('مسار الموافقة');
+    expect(shown).toContain('مسار الاعتماد');
     expect(shown).toContain('الخطوة 1: المعتمِد / المدير');
     expect(shown).toContain('الخطوة 2: أي معتمِد');
     expect(shown).toContain('غير مختار (رُفض العطاء)');
     expect(shown).toContain('احتياطي، الترتيب 1');
-    expect(shown).toContain('لا تسمح قاعدة الموافقة بالموافقة الذاتية');
+    expect(shown).toContain('لا تسمح قاعدة الاعتماد بالاعتماد الذاتي');
     expect(shown).not.toMatch(/Approval route|Not selected|Reserve, order/);
   });
 
@@ -136,7 +136,7 @@ describe('Decision and negotiation in Arabic', () => {
     );
     page.detectChanges();
     const shown = text(page.nativeElement as HTMLElement);
-    expect(shown).toContain('مسار الموافقة');
+    expect(shown).toContain('مسار الاعتماد');
     expect(shown).toContain('المسار الافتراضي');
     expect(shown).toContain(
       'لا تطابق أي قاعدة اعتماد، لذا يُطبَّق المسار الافتراضي: اعتماد واحد من معتمد/مدير.',
@@ -370,7 +370,7 @@ describe('Decision and negotiation in Arabic', () => {
     };
     const submit = (element: HTMLElement) =>
       [...element.querySelectorAll('button')]
-        .find((button) => text(button).includes('تقديم للموافقة'))!
+        .find((button) => text(button).includes('تقديم للاعتماد'))!
         .click();
 
     // The suggestion is pre-selected and its source named; the previous awardee is disabled with a note.

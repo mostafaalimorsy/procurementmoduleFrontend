@@ -107,6 +107,8 @@ export interface CloseoutBaseline {
   readonly mobilizationDays?: number | null;
   readonly mobilizationDueDate?: string | null;
   readonly mobilizationVarianceDays?: number | null;
+  /** Phase 3 SI-066: the awarded package's project, so the closeout links back up the chain. */
+  readonly projectId?: string | null;
 }
 
 export interface CommercialOutcome {
@@ -253,6 +255,13 @@ export interface CloseoutWorkspace {
   readonly acknowledgedAtUtc?: string | null;
   readonly acknowledgedByName?: string | null;
   readonly canAcknowledge?: boolean;
+  /**
+   * Phase 3 SI-060 (ADR-110): where the award stands now (NotRecorded, AwaitingResponse, Accepted, Declined, WithdrawalPending,
+   * Withdrawn) and whether a closeout applies to it — the server's own start rule (an accepted award, or one issued before answers were
+   * tracked); the server refuses a save otherwise.
+   */
+  readonly awardState?: string;
+  readonly closeoutAllowed?: boolean;
 }
 
 export interface CloseoutListItem {
@@ -274,6 +283,10 @@ export interface CloseoutListItem {
   readonly required: number;
   readonly closedAtUtc: string | null;
   readonly updatedAtUtc: string | null;
+  /** Phase 3 SI-066: ids to link the row back up the chain (its codes and reference are above). */
+  readonly tenderId?: string | null;
+  readonly workPackageId?: string | null;
+  readonly projectId?: string | null;
 }
 
 export interface CloseoutPage {

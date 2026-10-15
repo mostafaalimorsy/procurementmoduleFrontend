@@ -1367,3 +1367,98 @@ describe('No account id on the project and work-package screens (red-team G193, 
     expectNoAccountId(element);
   });
 });
+
+describe('Procurement roll-up and outcome (Phase 3 SI-058)', () => {
+  const awardSummary = {
+    awardId: 'a1',
+    awardSequence: 2,
+    tenderId: 't9',
+    tenderReference: 'TND-2026-0009',
+    subcontractorId: 's1',
+    subcontractorCode: 'ACME-01',
+    subcontractorName: 'Acme Mechanical',
+    awardedAtUtc: '2026-10-08T09:00:00Z',
+    awardState: 'AwaitingResponse',
+    inForce: true,
+    acceptedOn: null,
+    awardValue: null,
+    currency: null,
+    closeoutStatus: null,
+    closeoutOutcomeType: null,
+    closeoutClosedAtUtc: null,
+  };
+
+  it('leads an awarded work package with its outcome and names its latest tender and stage', () => {
+    const http = configure(ALL_PERMISSIONS, { packageId: 'w1' });
+    const fixture = TestBed.createComponent(WorkPackageDetailPage);
+    fixture.detectChanges();
+    http.expectOne('/api/v1/work-packages/w1').flush({
+      ...packagePage.items[0],
+      status: 'Active',
+      projectCode: 'CMC-2026',
+      projectName: 'Cairo Medical Complex Expansion',
+      projectStatus: 'Active',
+      description: null,
+      scopeSummary: null,
+      allowedNextStatuses: [],
+      createdAtUtc: '2026-03-01T08:00:00Z',
+      createdBy: 'u1',
+      updatedBy: 'u1',
+      estimateEditable: false,
+      estimateReasonRequired: false,
+      estimateRevisions: [],
+      procurementStage: 'Awarded',
+      latestTenderId: 't9',
+      latestTenderReference: 'TND-2026-0009',
+      awardSummary,
+    } satisfies WorkPackageDetail);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const block = element.querySelector('[data-testid="award-summary"]') as HTMLElement;
+    expect(block).not.toBeNull();
+    expect(block.textContent).toContain('Acme Mechanical');
+    expect(block.textContent).toContain("Awaiting the subcontractor's answer");
+    expect(block.textContent).toContain('TND-2026-0009');
+    expect(block.textContent).toContain('award 2 of this tender');
+    // The value is commercial and was not sent: nothing stands in for it.
+    expect(block.querySelector('[data-testid="award-summary-value"]')).toBeNull();
+    const procurement = element.querySelector('[data-testid="package-procurement"]')!;
+    expect(procurement.textContent).toContain('Awarded');
+    expect(procurement.textContent).toContain('TND-2026-0009');
+  });
+
+  it("shows each package's procurement stage, latest tender and awarded value on the project", () => {
+    const http = configure(ALL_PERMISSIONS, { id: 'p1' });
+    const fixture = TestBed.createComponent(ProjectDetailPage);
+    fixture.detectChanges();
+    http.expectOne('/api/v1/projects/p1').flush(detail);
+    fixture.detectChanges();
+    http
+      .expectOne((request) => request.url === '/api/v1/projects/p1/work-packages')
+      .flush({
+        ...packagePage,
+        items: [
+          {
+            ...packagePage.items[0],
+            procurementStage: 'Awarded',
+            latestTenderId: 't9',
+            latestTenderReference: 'TND-2026-0009',
+            awardedValue: '987500.00',
+            awardedCurrency: 'EGP',
+          },
+          { ...packagePage.items[0], id: 'w2', code: 'HVAC-02' },
+        ],
+        totalCount: 2,
+      });
+    fixture.detectChanges();
+    const cells = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll(
+        '[data-testid="package-procurement"]',
+      ),
+    ].map((cell) => (cell.textContent ?? '').replace(/\s+/g, ' '));
+    expect(cells[0]).toContain('Awarded');
+    expect(cells[0]).toContain('TND-2026-0009');
+    expect(cells[0]).toMatch(/Awarded: .*987,500/);
+    expect(cells[1]).toContain('Not tendered');
+  });
+});

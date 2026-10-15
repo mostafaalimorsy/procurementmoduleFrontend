@@ -5,7 +5,8 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { BusinessDatePipe } from '../../core/localization/business-format';
 import { LocaleService } from '../../core/localization/locale.service';
-import { money } from '../evaluation/evaluation-format';
+import { RecordLinks } from '../../shared/navigation/record-links';
+import { money, score } from '../evaluation/evaluation-format';
 import { HistoryEvidence } from '../performance/history-evidence';
 import { retrospectiveBadge } from '../performance/performance-labels';
 import { REASON_MIN, isStale } from '../tendering/tendering.api';
@@ -13,6 +14,7 @@ import {
   CriterionOutcome,
   DecisionApi,
   DecisionWorkspace,
+  Recommendation,
   RecommendationCandidate,
   decisionProblemMessage,
   shortFingerprint,
@@ -55,6 +57,8 @@ export class DecisionRecommendation {
   private readonly api = inject(DecisionApi);
   private readonly keys = inject(RequestKeys);
   readonly locale = inject(LocaleService).locale;
+  /** Phase 3 SI-066: a candidate's firm links to its profile (plain text for a reader who cannot open it). */
+  readonly links = inject(RecordLinks);
   openPolicyVersion(version: number): string {
     return $localize`:@@evaluation.openPolicyVersion:Open version ${version}:version: of this policy`;
   }
@@ -68,6 +72,30 @@ export class DecisionRecommendation {
 
   readonly kindLabel = criterionKindLabel;
   readonly historyRuleLabel = historyRuleLabel;
+
+  /**
+   * Phase 3 SI-043: under the partial history rule, the range of the composites the firms with enough history were weighed on, beside
+   * the neutral value the others received — so a reader sees whether "neutral" sits below almost every real record. Display only;
+   * the rule and its fingerprint are unchanged (the algorithm question is with Data/Intelligence).
+   */
+  neutralRange(
+    rec: Recommendation,
+  ): { min: string; max: string; count: number; neutral: string; above: number } | null {
+    if (rec.historyRule !== 'partial-v2') return null;
+    const scores = rec.candidates
+      .filter((c) => c.history && c.history.sampleSize >= 2)
+      .map((c) => Number(c.history!.score))
+      .filter((value) => Number.isFinite(value));
+    if (!scores.length) return null;
+    const neutral = rec.neutralHistoryScore ?? 50;
+    return {
+      min: String(Math.min(...scores)),
+      max: String(Math.max(...scores)),
+      count: scores.length,
+      neutral: String(neutral),
+      above: scores.filter((value) => value > neutral).length,
+    };
+  }
   readonly retrospectiveBadge = retrospectiveBadge();
   readonly kindRule = criterionKindRule;
   readonly statusLabel = evidenceStatusLabel;
@@ -166,8 +194,9 @@ export class DecisionRecommendation {
       : value;
   }
 
+  /** Phase 3 SI-141: scores read to one decimal, as everywhere else. */
   number(value: number | null | undefined): string {
-    return value === null || value === undefined ? '—' : String(value);
+    return score(value);
   }
 
   money(amount: string | null): string {

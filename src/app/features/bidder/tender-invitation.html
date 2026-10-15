@@ -157,137 +157,8 @@
           />
         }
 
-        @if (!item.buyerPreview && (item.bid || item.canBid)) {
-          <section class="bid-card bid-card--bid" aria-labelledby="bid-yours-title">
-            <h2 id="bid-yours-title" i18n="@@bidder.yourBid">Your bid</h2>
-            @if (item.bid?.status === 'Submitted') {
-              <p class="bid-submitted" role="status">
-                <strong i18n="@@bidder.bidSubmitted">Submitted</strong>&ngsp;·&ngsp;<span
-                  i18n="@@bidWorkspace.reference"
-                  >Bid reference</span
-                >&ngsp;<bdi dir="ltr" class="bid-code">{{ item.bid?.reference }}</bdi
-                >&ngsp;·&ngsp;{{ item.bid?.submittedAtUtc | businessDate: 'instant' }}
-              </p>
-              <p class="prj-hint" i18n="@@bidder.submittedHelp">
-                The system received your bid. It is not an approval or an award; the buyer reviews
-                bids after the deadline.
-              </p>
-              @if (item.bid?.tenderRevision && item.bid!.tenderRevision! < item.revision) {
-                <p
-                  class="prj-note bid-attention"
-                  role="note"
-                  i18n="@@bidder.revisedAfterSubmission"
-                >
-                  Your bid answered tender revision {{ item.bid?.tenderRevision }}. The buyer has
-                  since issued an addendum (now revision {{ item.revision }}). Your submitted bid
-                  stays exactly as submitted; contact the buyer if the change affects it.
-                </p>
-              }
-              <div class="prj-actions">
-                <button
-                  class="prj-btn"
-                  type="button"
-                  [disabled]="opening()"
-                  (click)="openBid()"
-                  i18n="@@bidder.viewSubmitted"
-                >
-                  View your submitted bid
-                </button>
-              </div>
-            } @else if (item.bid && item.invitationStatus === 'BidStarted') {
-              <p>
-                <span i18n="@@bidder.draftSaved">Draft in progress</span>&ngsp;·&ngsp;<span
-                  i18n="@@bidWorkspace.reference"
-                  >Bid reference</span
-                >&ngsp;<bdi dir="ltr" class="bid-code">{{ item.bid.reference }}</bdi>
-                @if (item.bid.draftSavedAtUtc) {
-                  &ngsp;·&ngsp;<span i18n="@@bidder.lastSaved"
-                    >last saved {{ item.bid.draftSavedAtUtc | businessDate: 'instant' }}</span
-                  >
-                }
-              </p>
-              @if (item.bid.tenderRevision && item.bid.tenderRevision < item.revision) {
-                <p class="prj-note bid-attention" role="note" i18n="@@bidder.revisedAfterStart">
-                  The tender was updated after you started (now revision {{ item.revision }}). Your
-                  draft is kept as you saved it. Review the changes before submitting.
-                </p>
-              }
-              @if ((item.outstandingAcknowledgements ?? 0) > 0) {
-                <p
-                  class="prj-note bid-attention"
-                  role="note"
-                  i18n="@@bidder.acknowledgeBeforeSubmit"
-                >
-                  Acknowledge the addenda above before you submit your bid.
-                </p>
-              }
-              @if (item.state === 'Open') {
-                <div class="prj-actions">
-                  <button
-                    class="prj-btn"
-                    type="button"
-                    [disabled]="opening()"
-                    (click)="openBid()"
-                    i18n="@@bidder.continueBid"
-                  >
-                    Continue your bid
-                  </button>
-                </div>
-              } @else {
-                @if (item.state === 'Cancelled') {
-                  <p class="prj-hint" i18n="@@bidder.draftCancelled">
-                    The buyer has cancelled this tender: your draft is kept but can no longer be
-                    submitted.
-                  </p>
-                } @else if (item.closedEarlyAt) {
-                  <p class="prj-hint" i18n="@@bidder.draftClosedEarly">
-                    The buyer closed this tender early: your draft is kept but can no longer be
-                    submitted.
-                  </p>
-                } @else {
-                  <p class="prj-hint" i18n="@@bidder.draftClosed">
-                    The deadline has passed: your draft is kept but can no longer be submitted.
-                  </p>
-                }
-                <div class="prj-actions">
-                  <button
-                    class="prj-btn prj-btn--ghost"
-                    type="button"
-                    [disabled]="opening()"
-                    (click)="openBid()"
-                    i18n="@@bidder.viewDraft"
-                  >
-                    View your draft
-                  </button>
-                </div>
-              }
-            } @else if (item.canBid) {
-              <p i18n="@@bidder.startHelp">
-                Prepare your commercial and technical response here, attach supporting files, review
-                and submit before the deadline. Your draft is saved as you go and only your company
-                sees it until you submit.
-              </p>
-              <div class="prj-actions">
-                <button class="prj-btn" type="button" [disabled]="opening()" (click)="startBid()">
-                  @if (item.bid) {
-                    <ng-container i18n="@@bidder.resumeBid">Resume your bid</ng-container>
-                  } @else {
-                    <ng-container i18n="@@bidder.startBid">Start your bid</ng-container>
-                  }
-                </button>
-              </div>
-            }
-            <p class="prj-hint">
-              <span i18n="@@bidder.pricesIn">Prices are in</span>&ngsp;<bdi
-                dir="ltr"
-                class="bid-code"
-                >{{ item.currency }}</bdi
-              >
-              ({{ currencyName(item.currency) }})
-            </p>
-          </section>
-        }
-
+        <!-- Phase 3 SI-152: a bidder reads what to do first — the addenda to acknowledge and the answer to give — then the
+             scope and the documents, then prepares the bid; questions and the buyer's contact follow. -->
         @if (item.buyerPreview || !item.linkAccess || item.linkAccess === 'Firm') {
           <section class="bid-card" aria-labelledby="bid-answer-title">
             <h2 id="bid-answer-title" i18n="@@bidder.answerTitle">Your answer</h2>
@@ -556,6 +427,137 @@
                 </li>
               }
             </ul>
+          </section>
+        }
+
+        @if (!item.buyerPreview && (item.bid || item.canBid)) {
+          <section class="bid-card bid-card--bid" aria-labelledby="bid-yours-title">
+            <h2 id="bid-yours-title" i18n="@@bidder.yourBid">Your bid</h2>
+            @if (item.bid?.status === 'Submitted') {
+              <p class="bid-submitted" role="status">
+                <strong i18n="@@bidder.bidSubmitted">Submitted</strong>&ngsp;·&ngsp;<span
+                  i18n="@@bidWorkspace.reference"
+                  >Bid reference</span
+                >&ngsp;<bdi dir="ltr" class="bid-code">{{ item.bid?.reference }}</bdi
+                >&ngsp;·&ngsp;{{ item.bid?.submittedAtUtc | businessDate: 'instant' }}
+              </p>
+              <p class="prj-hint" i18n="@@bidder.submittedHelp">
+                The system received your bid. It is not an approval or an award; the buyer reviews
+                bids after the deadline.
+              </p>
+              @if (item.bid?.tenderRevision && item.bid!.tenderRevision! < item.revision) {
+                <p
+                  class="prj-note bid-attention"
+                  role="note"
+                  i18n="@@bidder.revisedAfterSubmission"
+                >
+                  Your bid answered tender revision {{ item.bid?.tenderRevision }}. The buyer has
+                  since issued an addendum (now revision {{ item.revision }}). Your submitted bid
+                  stays exactly as submitted; contact the buyer if the change affects it.
+                </p>
+              }
+              <div class="prj-actions">
+                <button
+                  class="prj-btn"
+                  type="button"
+                  [disabled]="opening()"
+                  (click)="openBid()"
+                  i18n="@@bidder.viewSubmitted"
+                >
+                  View your submitted bid
+                </button>
+              </div>
+            } @else if (item.bid && item.invitationStatus === 'BidStarted') {
+              <p>
+                <span i18n="@@bidder.draftSaved">Draft in progress</span>&ngsp;·&ngsp;<span
+                  i18n="@@bidWorkspace.reference"
+                  >Bid reference</span
+                >&ngsp;<bdi dir="ltr" class="bid-code">{{ item.bid.reference }}</bdi>
+                @if (item.bid.draftSavedAtUtc) {
+                  &ngsp;·&ngsp;<span i18n="@@bidder.lastSaved"
+                    >last saved {{ item.bid.draftSavedAtUtc | businessDate: 'instant' }}</span
+                  >
+                }
+              </p>
+              @if (item.bid.tenderRevision && item.bid.tenderRevision < item.revision) {
+                <p class="prj-note bid-attention" role="note" i18n="@@bidder.revisedAfterStart">
+                  The tender was updated after you started (now revision {{ item.revision }}). Your
+                  draft is kept as you saved it. Review the changes before submitting.
+                </p>
+              }
+              @if ((item.outstandingAcknowledgements ?? 0) > 0) {
+                <p
+                  class="prj-note bid-attention"
+                  role="note"
+                  i18n="@@bidder.acknowledgeBeforeSubmit"
+                >
+                  Acknowledge the addenda above before you submit your bid.
+                </p>
+              }
+              @if (item.state === 'Open') {
+                <div class="prj-actions">
+                  <button
+                    class="prj-btn"
+                    type="button"
+                    [disabled]="opening()"
+                    (click)="openBid()"
+                    i18n="@@bidder.continueBid"
+                  >
+                    Continue your bid
+                  </button>
+                </div>
+              } @else {
+                @if (item.state === 'Cancelled') {
+                  <p class="prj-hint" i18n="@@bidder.draftCancelled">
+                    The buyer has cancelled this tender: your draft is kept but can no longer be
+                    submitted.
+                  </p>
+                } @else if (item.closedEarlyAt) {
+                  <p class="prj-hint" i18n="@@bidder.draftClosedEarly">
+                    The buyer closed this tender early: your draft is kept but can no longer be
+                    submitted.
+                  </p>
+                } @else {
+                  <p class="prj-hint" i18n="@@bidder.draftClosed">
+                    The deadline has passed: your draft is kept but can no longer be submitted.
+                  </p>
+                }
+                <div class="prj-actions">
+                  <button
+                    class="prj-btn prj-btn--ghost"
+                    type="button"
+                    [disabled]="opening()"
+                    (click)="openBid()"
+                    i18n="@@bidder.viewDraft"
+                  >
+                    View your draft
+                  </button>
+                </div>
+              }
+            } @else if (item.canBid) {
+              <p i18n="@@bidder.startHelp">
+                Prepare your commercial and technical response here, attach supporting files, review
+                and submit before the deadline. Your draft is saved as you go and only your company
+                sees it until you submit.
+              </p>
+              <div class="prj-actions">
+                <button class="prj-btn" type="button" [disabled]="opening()" (click)="startBid()">
+                  @if (item.bid) {
+                    <ng-container i18n="@@bidder.resumeBid">Resume your bid</ng-container>
+                  } @else {
+                    <ng-container i18n="@@bidder.startBid">Start your bid</ng-container>
+                  }
+                </button>
+              </div>
+            }
+            <p class="prj-hint">
+              <span i18n="@@bidder.pricesIn">Prices are in</span>&ngsp;<bdi
+                dir="ltr"
+                class="bid-code"
+                >{{ item.currency }}</bdi
+              >
+              ({{ currencyName(item.currency) }})
+            </p>
           </section>
         }
 

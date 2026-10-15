@@ -46,3 +46,8 @@
   min-inline-size: 0;
   max-inline-size: 100%;
 }
+
+/* Phase 3 SI-133: the exact reference leads, as one object. */
+.srch-exact {
+  margin-block: 1rem 1.5rem;
+}

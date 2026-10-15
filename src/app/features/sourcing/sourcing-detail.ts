@@ -13,6 +13,7 @@ import {
   lifecycleStatusLabel,
   ltr,
   subcontractorStatusLabel,
+  tenderLifecycleLabel,
 } from '../../core/localization/labels';
 import { knownProductProblem } from '../../core/localization/product-problem';
 import { CandidateEvidenceView } from '../intelligence/candidate-evidence';
@@ -24,6 +25,7 @@ import {
 import { INTELLIGENCE_FEATURES, INTELLIGENCE_PERMISSIONS } from '../intelligence/intelligence.api';
 import { ConfirmDialog } from '../../shared/ui/confirm-dialog';
 import { WorkPackageTender } from '../tendering/work-package-tender';
+import { ProjectsApi } from '../projects/projects.api';
 import { DirectoryApi, Paged, Trade } from '../subcontractors/subcontractors.api';
 import {
   CRITERIA,
@@ -94,6 +96,15 @@ export class SourcingDetailPage implements OnInit {
   private readonly session = inject(SessionService);
   private readonly entitlements = inject(EntitlementsService);
   private readonly document = inject(DOCUMENT);
+  private readonly projects = inject(ProjectsApi);
+  /**
+   * Phase 3 SI-059: where the package's procurement went after this shortlist (its latest tender and that tender's stage), read from
+   * the work package for readers of it once the shortlist is approved; null when unknown, which keeps the plain approved guidance.
+   */
+  readonly procurement = signal<{
+    readonly stage: string;
+    readonly tenderReference: string | null;
+  } | null>(null);
 
   readonly permissions = SOURCING_PERMISSIONS;
   readonly criteria = CRITERIA;
@@ -200,6 +211,7 @@ export class SourcingDetailPage implements OnInit {
         this.loading.set(false);
         if (afterNotice) this.notice.set(afterNotice);
         if (this.canAddCandidates()) this.discover();
+        this.loadProcurement(sourcing);
       },
       error: (error: unknown) => {
         this.error.set(sourcingProblemMessage(error));
@@ -208,10 +220,49 @@ export class SourcingDetailPage implements OnInit {
     });
   }
 
+  /** Phase 3 SI-059: an approved shortlist's package stage, for readers of the work package (a refusal leaves it unknown). */
+  private loadProcurement(sourcing: SourcingDetail): void {
+    if (
+      sourcing.lockReason !== 'sourcing.shortlist_approved_read_only' ||
+      !this.entitlements.has('tendering') ||
+      !this.session.hasPermission('WorkPackages.View')
+    ) {
+      this.procurement.set(null);
+      return;
+    }
+    this.projects.getWorkPackage(sourcing.workPackage.id).subscribe({
+      next: (workPackage) =>
+        this.procurement.set(
+          workPackage.procurementStage
+            ? {
+                stage: workPackage.procurementStage,
+                tenderReference: workPackage.latestTenderReference ?? null,
+              }
+            : null,
+        ),
+      error: () => this.procurement.set(null),
+    });
+  }
+
   /** What the person should do next, stated in business terms. */
   guidance(sourcing: SourcingDetail): string {
     // CF-007: tendering is the next stage only on a plan that includes it.
     const tendering = this.entitlements.has('tendering');
+    // Phase 3 SI-059: once the package's tender is under way or awarded, "may proceed to tendering" is stale — say where it went.
+    const procurement = this.procurement();
+    if (
+      sourcing.lockReason === 'sourcing.shortlist_approved_read_only' &&
+      tendering &&
+      procurement &&
+      procurement.stage !== 'Cancelled' &&
+      procurement.stage !== 'ClosedForRetender'
+    ) {
+      const reference = ltr(procurement.tenderReference ?? '');
+      if (procurement.stage === 'Awarded')
+        return $localize`:@@sourcing.guidanceApprovedAwarded:This shortlist is approved and the package's tender ${reference}:reference: was awarded. It stays as the record of who qualified; nothing here changes unless the shortlist is reopened.`;
+      const stage = tenderLifecycleLabel(procurement.stage);
+      return $localize`:@@sourcing.guidanceApprovedTendering:This shortlist is approved and the package's tender ${reference}:reference: is under way (${stage}:stage:). Nothing here changes unless the shortlist is reopened.`;
+    }
     if (sourcing.lockReason === 'sourcing.shortlist_approved_read_only')
       return tendering
         ? $localize`:@@sourcing.guidanceApproved:This shortlist is approved. These subcontractors may proceed to tendering; nothing here changes unless the shortlist is reopened.`

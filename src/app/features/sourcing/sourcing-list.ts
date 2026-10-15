@@ -14,6 +14,7 @@ import {
   sourcingProblemMessage,
   sourcingStatusLabel,
 } from './sourcing.api';
+import { listUrlState, oneOfParam, pageParam } from '../../core/navigation/list-url-state';
 
 /** Every work package being sourced, most recently changed first. Paged by the server. */
 @Component({
@@ -32,6 +33,9 @@ export class SourcingList implements OnInit {
   private readonly api = inject(SourcingApi);
   private readonly router = inject(Router);
   private readonly session = inject(SessionService);
+  private readonly url = listUrlState();
+  /** The list state on screen (its URL key), so a URL that already says so does not load it twice. */
+  private shown = '';
 
   readonly statusLabel = sourcingStatusLabel;
   readonly packageStatusLabel = lifecycleStatusLabel;
@@ -77,16 +81,32 @@ export class SourcingList implements OnInit {
   }
 
   ngOnInit(): void {
-    this.load();
+    // Phase 3 SI-065: the status, search and page live in the URL (Back, reload, a shared link).
+    this.url.watch((params) => {
+      this.status = oneOfParam(params, 'status', this.statuses);
+      this.search = params.get('q') ?? '';
+      this.page = pageParam(params);
+      const shown = this.url.key({ status: this.status, q: this.search.trim(), page: this.page });
+      if (shown === this.shown) return;
+      this.shown = shown;
+      this.load();
+    });
   }
 
   applyFilter(): void {
     this.page = 1;
-    this.load();
+    this.sync();
   }
 
   goToPage(page: number): void {
     this.page = page;
+    this.sync();
+  }
+
+  private sync(): void {
+    const values = { status: this.status, q: this.search.trim(), page: this.page };
+    this.url.write(values);
+    this.shown = this.url.key(values);
     this.load();
   }
 

@@ -49,6 +49,62 @@
       </p>
     }
 
+    <!-- Phase 3 SI-113: every bidder's price movement in one table (commercial readers only — the server sends no amount
+         otherwise). No rank before or after: evaluation never ranks (Part 9); the recommendation does, with its own policy. -->
+    @if (view.includesCommercial && view.bids.length > 1) {
+      <section class="prj-section" aria-labelledby="comparison-all-title" data-testid="all-bidders">
+        <h2 id="comparison-all-title" i18n="@@comparison.allTitle">All bidders</h2>
+        <div
+          class="prj-table-wrap"
+          role="region"
+          tabindex="0"
+          aria-labelledby="comparison-all-title"
+        >
+          <table class="prj-table">
+            <caption class="prj-visually-hidden" i18n="@@comparison.allCaption">
+              Original and final totals of every bid, with the change
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col" i18n="@@comparison.colFirm">Firm</th>
+                <th scope="col" class="dc-num" i18n="@@comparison.colOriginal">Original</th>
+                <th scope="col" class="dc-num" i18n="@@comparison.colFinal">Final (in force)</th>
+                <th scope="col" class="dc-num" i18n="@@comparison.change">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of view.bids; track item.openingBidId) {
+                <tr>
+                  <th scope="row">
+                    <bdi dir="ltr" class="tnd-code">{{ item.subcontractorCode }}</bdi>
+                    <bdi>{{ item.subcontractorName }}</bdi>
+                  </th>
+                  <td class="dc-num">
+                    <bdi dir="ltr">{{ money(item.originalTotal) }}</bdi>
+                  </td>
+                  <td class="dc-num">
+                    <bdi dir="ltr">{{ money(item.finalTotal) }}</bdi>
+                  </td>
+                  <td class="dc-num">
+                    <bdi dir="ltr">{{ signed(item.absoluteChange) }}</bdi>
+                    @if (item.percentChange !== null) {
+                      <small class="prj-hint tnd-block"
+                        ><bdi dir="ltr">{{ percent(item.percentChange) }}%</bdi></small
+                      >
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="prj-hint" i18n="@@comparison.allCurrency">
+          Amounts in <bdi dir="ltr">{{ view.currency }}</bdi
+          >.
+        </p>
+      </section>
+    }
+
     @if (view.bids.length > 1) {
       <div class="prj-field dc-bid-pick">
         <label for="comparison-bid" i18n="@@comparison.chooseBid">Bid shown</label>

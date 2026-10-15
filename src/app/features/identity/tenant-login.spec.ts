@@ -124,3 +124,51 @@ describe('Tenant sign-in with an authenticator (CF-065)', () => {
     );
   });
 });
+
+describe('Tenant sign-in feedback (Phase 3 SI-143)', () => {
+  function render(login: () => unknown) {
+    TestBed.configureTestingModule({
+      imports: [TenantLogin],
+      providers: [
+        provideRouter([]),
+        { provide: SessionService, useValue: { login } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParamMap: convertToParamMap({}) } },
+        },
+      ],
+    });
+    const fixture = TestBed.createComponent(TenantLogin);
+    document.body.appendChild(fixture.nativeElement);
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('keeps Sign in available and explains an incomplete form on submit, focusing the message', async () => {
+    const fixture = render(() => of(undefined));
+    const element = fixture.nativeElement as HTMLElement;
+    const button = element.querySelector('button.primary') as HTMLButtonElement;
+    expect(button.disabled).toBe(false);
+    fixture.componentInstance.submit();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve));
+    const error = element.querySelector('#tenant-login-error') as HTMLElement;
+    expect(error.textContent).toBeTruthy();
+    expect(document.activeElement).toBe(error);
+    fixture.nativeElement.remove();
+  });
+
+  it('moves the focus to the failure message after wrong credentials', async () => {
+    const fixture = render(() => throwError(() => ({ status: 401 })));
+    const page = fixture.componentInstance;
+    page.email = 'pam@delta.example';
+    page.password = 'wrong';
+    page.submit();
+    fixture.detectChanges();
+    await new Promise((resolve) => setTimeout(resolve));
+    const error = (fixture.nativeElement as HTMLElement).querySelector('#tenant-login-error')!;
+    expect(error.textContent).toContain('Sign in failed');
+    expect(document.activeElement).toBe(error);
+    fixture.nativeElement.remove();
+  });
+});

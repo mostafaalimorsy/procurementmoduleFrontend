@@ -33,6 +33,7 @@
         <h1>
           <bdi>{{ project.name }}</bdi>
         </h1>
+        <app-saved-notice />
         <p>
           <span class="prj-chip prj-chip--{{ project.status }}">{{
             statusLabel(project.status)
@@ -214,6 +215,7 @@
                     <th scope="col" i18n="@@project.title">Title</th>
                     <th scope="col" i18n="@@project.trade">Trade</th>
                     <th scope="col" i18n="@@project.status">Status</th>
+                    <th scope="col" i18n="@@project.procurement">Procurement</th>
                     <th scope="col" i18n="@@project.planned">Planned</th>
                     @if (estimatesVisible()) {
                       <th scope="col" class="prj-numeric">
@@ -241,6 +243,28 @@
                           statusLabel(item.status)
                         }}</span>
                       </td>
+                      <!-- Phase 3 SI-058: the package's procurement roll-up — latest tender, its stage and the value of the
+                           award in force (commercial: sent only to readers who see commercial outcomes). -->
+                      <td data-testid="package-procurement">
+                        @if (item.procurementStage) {
+                          <span class="tnd-block">{{ stageLabel(item.procurementStage) }}</span>
+                          @if (item.latestTenderId) {
+                            <a class="tnd-block" [routerLink]="links.tender(item.latestTenderId)"
+                              ><bdi dir="ltr">{{ item.latestTenderReference }}</bdi></a
+                            >
+                          }
+                          @if (item.awardedValue) {
+                            <small class="prj-hint tnd-block" i18n="@@project.awardedValue"
+                              >Awarded:
+                              <bdi dir="ltr">{{
+                                item.awardedValue | businessCurrency: item.awardedCurrency
+                              }}</bdi></small
+                            >
+                          }
+                        } @else {
+                          <span class="prj-hint" i18n="@@project.notTendered">Not tendered</span>
+                        }
+                      </td>
                       <td>
                         {{ item.plannedStartDate | businessDate }}
                         <span class="directional-icon" aria-hidden="true">→</span>
@@ -259,7 +283,7 @@
                 @if (estimatesVisible()) {
                   <tfoot>
                     <tr>
-                      <th scope="row" colspan="5" i18n="@@project.total">
+                      <th scope="row" colspan="6" i18n="@@project.total">
                         Total estimated value on this page
                       </th>
                       <td class="prj-numeric">

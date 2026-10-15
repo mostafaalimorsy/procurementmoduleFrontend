@@ -48,7 +48,7 @@ export class TenderNegotiationPage implements OnInit {
   private readonly document = inject(DOCUMENT);
   readonly locale = inject(LocaleService).locale;
   readonly token = takeTokenFromFragment();
-  readonly systemName = $localize`:@@title.product:Subcontractor Intelligence`;
+  readonly systemName = $localize`:@@title.product:Subtriva`;
   readonly typeLabel = roundTypeLabel;
   readonly scopeLabel = roundScopeLabel;
   readonly commentMax = DECLINE_ROUND_COMMENT_MAX;

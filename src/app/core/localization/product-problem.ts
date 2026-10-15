@@ -299,7 +299,7 @@ const MESSAGES: Record<string, (p: Parameters | undefined) => string> = {
   'decision.self_approval_not_allowed': () =>
     $localize`:@@problem.decisionSelfApproval:You prepared or submitted this decision (or already approved a step of it). Another approver must act on it.`,
   'decision.withdraw_submitter_only': () =>
-    $localize`:@@problem.decisionWithdrawSubmitterOnly:Only the person who submitted this decision, or an approval-matrix manager, can withdraw it.`,
+    $localize`:@@problem.decisionWithdrawSubmitterOnlyRules:Only the person who submitted this decision, or someone who manages the approval rules, can withdraw it.`,
   'decision.approver_role_required': (p) =>
     $localize`:@@problem.decisionApproverRole:Approval step ${ltr(text(p, 'step'))}:step: needs an approver with the role ${tenantRoleLabel(text(p, 'role'))}:role:.`,
   'decision.submitter_cannot_send_back': () =>
@@ -536,6 +536,9 @@ const MESSAGES: Record<string, (p: Parameters | undefined) => string> = {
     $localize`:@@problem.notFound:That record no longer exists, or you do not have access to it.`,
   'request.throttled': () =>
     $localize`:@@problem.throttled:Too many requests. Wait a minute and try again.`,
+  // Phase 3 SI-102: the server's size limit for the route (413).
+  'request.too_large': () =>
+    $localize`:@@problem.requestTooLarge:This is more than can be sent at once. Shorten the text or send fewer or smaller files, then try again.`,
   'contact.in_open_invitation': () =>
     $localize`:@@problem.contactInOpenInvitation:This contact receives an open tender's invitation. Change the invitation's recipient first, then erase the contact.`,
   'outside_bid.sealed': () =>
@@ -1076,6 +1079,9 @@ const MESSAGES: Record<string, (p: Parameters | undefined) => string> = {
   },
   'user.acting_role_ended': () =>
     $localize`:@@problem.actingEnded:This acting role has already ended.`,
+  // Phase 3 SI-102: the opposite precondition of award.not_in_force.
+  'tender.retender_award_in_force': () =>
+    $localize`:@@problem.retenderAwardInForce:An award is in force on this tender. Withdraw it, or record the firm's decline, before closing the tender for re-tender.`,
   'tender.retender_not_closed': () =>
     $localize`:@@problem.retenderNotClosed:Only a tender closed without an award can be tendered again.`,
   'tender.retender_exists': () =>

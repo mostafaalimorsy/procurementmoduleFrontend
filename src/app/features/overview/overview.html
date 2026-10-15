@@ -10,20 +10,20 @@
     Welcome, <bdi>{{ identity.displayName || identity.email || teamMemberLabel }}</bdi
     >.
   </h1>
-  <p class="intro" i18n="@@overview.authIntro">
-    Prepare procurement through your company’s projects and work packages. Your role determines the
-    actions available to you.
-  </p>
-  <!-- CF-016: My work comes first (on the dashboard); one link that fits this person's role. -->
+  @if (roleIntro(); as intro) {
+    <p class="intro">{{ intro }}</p>
+  } @else {
+    <p class="intro" i18n="@@overview.authIntro">
+      Prepare procurement through your company’s projects and work packages. Your role determines
+      the actions available to you.
+    </p>
+  }
+  <!-- CF-016: My work comes first (on the dashboard); one link that fits this person's role and plan. -->
   @if (roleLink(); as link) {
     <p class="role-link">
-      <a
-        class="workspace-action"
-        [routerLink]="link.path"
-        [queryParams]="link.query ?? null"
-        [fragment]="link.fragment ?? undefined"
-        >{{ link.label }}</a
-      >
+      <a class="workspace-action" [routerLink]="link.path" [queryParams]="link.query ?? null">{{
+        link.label
+      }}</a>
     </p>
   } @else if (!canViewProjects() && !canManageUsers()) {
     <p i18n="@@overview.noActions">Your current role has no workspace actions available yet.</p>

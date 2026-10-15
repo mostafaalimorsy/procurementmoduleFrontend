@@ -1,3 +1,5 @@
+<!-- Phase 3 SI-064: what waits on this person comes first; the company's picture follows under its own heading. -->
+<app-my-work />
 <section class="dash" aria-labelledby="dash-title">
   <h2 id="dash-title" i18n="@@dashboard.title">Your company today</h2>
   @if (loading()) {
@@ -10,10 +12,16 @@
       </button>
     </p>
   } @else if (dashboard(); as view) {
-    <!-- CF-001 / CF-016: what is waiting on you comes first. -->
-    <app-my-work />
     <section class="dash-block" aria-labelledby="dash-attention">
-      <h3 id="dash-attention" i18n="@@dashboard.attention">Needs attention</h3>
+      <!-- Phase 3 SI-064: a reader who does not act in procurement reads these as information, not as work. -->
+      @if (actsInProcurement()) {
+        <h3 id="dash-attention" i18n="@@dashboard.attention">Needs attention</h3>
+      } @else {
+        <h3 id="dash-attention" i18n="@@dashboard.forInformation">For information</h3>
+        <p class="prj-hint" i18n="@@dashboard.forInformationHint">
+          Across the company. Procurement leadership acts on these; your own work is above.
+        </p>
+      }
       @if (
         attention(view).length === 0 &&
         !(view.closeouts && view.closeouts.pending + view.closeouts.reopened > 0)
@@ -125,8 +133,11 @@
             approved, award to issue <bdi dir="ltr">{{ decisions.approvedAwaitingAward }}</bdi>
           </dd>
           @if (decisions.awaitingYourApproval) {
-            <dd class="prj-hint" i18n="@@dashboard.yourApprovals">
-              yours to approve now <bdi dir="ltr">{{ decisions.awaitingYourApproval }}</bdi>
+            <dd class="prj-hint">
+              <!-- Phase 3 SI-064: the approvals that are yours open from My work, where each one links to its decision. -->
+              <a routerLink="/" fragment="my-work-title" i18n="@@dashboard.yourApprovals"
+                >yours to approve now <bdi dir="ltr">{{ decisions.awaitingYourApproval }}</bdi></a
+              >
             </dd>
           }
         </div>
@@ -167,14 +178,17 @@
             @for (category of evidence.categories; track category.category) {
               <li>
                 <strong>{{ categoryLabel(category.category) }}</strong>
+                <!-- Phase 3 SI-128: the strength is the best-covered firm's, not the category's; the counts are of firms with a
+                     finalized closeout (firms without one are not counted here). -->
+                <span class="prj-hint" i18n="@@dashboard.bestCoveredFirm">best-covered firm:</span>
                 <app-evidence-strength
                   [strength]="category.strongestFirmEvidence"
                   [dated]="category.dated"
                 />
-                <span i18n="@@dashboard.categoryCounts"
-                  >firms <bdi dir="ltr">{{ category.firms }}</bdi> · completed projects
-                  <bdi dir="ltr">{{ category.projects }}</bdi> · firms with 3 or more
-                  <bdi dir="ltr">{{ category.firmsWithModerateEvidence }}</bdi></span
+                <span i18n="@@dashboard.categoryCountsWithCloseout"
+                  >firms with a finalized closeout <bdi dir="ltr">{{ category.firms }}</bdi> ·
+                  completed projects <bdi dir="ltr">{{ category.projects }}</bdi> · firms with 3 or
+                  more <bdi dir="ltr">{{ category.firmsWithModerateEvidence }}</bdi></span
                 >
                 <span class="prj-hint" i18n="@@dashboard.latest"
                   >latest
@@ -211,12 +225,21 @@
           }
           @for (item of view.decisions?.recentAwards ?? []; track item.id) {
             <li>
-              <span class="prj-chip" i18n="@@dashboard.awardChip">Award issued</span>
+              <!-- Phase 3 SI-129: the award's state now, so a declined or withdrawn award never reads "Award issued". -->
+              <span
+                class="prj-chip"
+                [class.dc-state]="item.status === 'Declined' || item.status === 'Withdrawn'"
+                [class.dc-state--warn]="item.status === 'Declined' || item.status === 'Withdrawn'"
+                >{{ awardChip(item) }}</span
+              >
               <a [routerLink]="link(item)"
                 ><bdi dir="ltr" class="dash-code">{{ item.reference }}</bdi></a
               >
               @if (item.detail) {
                 <bdi>{{ item.detail }}</bdi>
+              }
+              @if (awardStateNote(item); as note) {
+                <span class="prj-hint">{{ note }}</span>
               }
               <span class="prj-hint"
                 ><bdi>{{ item.atUtc | businessDate: 'instant' }}</bdi></span

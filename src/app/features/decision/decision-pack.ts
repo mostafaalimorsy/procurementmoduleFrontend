@@ -1,6 +1,8 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { BusinessDatePipe } from '../../core/localization/business-format';
+import { tenantRoleLabel } from '../../core/auth/tenant-role-labels';
+import { formatList } from '../../core/localization/labels';
 import { LocaleService } from '../../core/localization/locale.service';
 import { money } from '../evaluation/evaluation-format';
 import { CriteriaFlag } from './criteria-flag';
@@ -43,6 +45,19 @@ export class DecisionPackPage implements OnInit {
       next: (pack) => this.pack.set(pack),
       error: (error: unknown) => this.error.set(decisionProblemMessage(error)),
     });
+  }
+
+  /**
+   * Phase 3 SI-121: the roles an approver acted in, by their names ("Approver / Director"), never the stored enum list
+   * ("ApproverDirector,ProcurementManager").
+   */
+  roleNames(roles: string | null | undefined): string {
+    const names = (roles ?? '')
+      .split(',')
+      .map((role) => role.trim())
+      .filter((role) => role.length > 0)
+      .map(tenantRoleLabel);
+    return names.length ? formatList(names, this.locale) : '—';
   }
 
   money(amount: string | null | undefined, currency: string): string {

@@ -117,6 +117,8 @@ export interface TenderSummary {
   readonly awardId?: string | null;
   /** Red-team B-098-1 (CF-098): the deadline in the tender's own zone (local time and offset beside the UTC instant). */
   readonly submissionDeadline?: TenderLocalTime | null;
+  /** Phase 3 SI-029: bids received (invitations with a submitted bid) — a count only, never content; the server always sends it (0 by default). */
+  readonly submittedCount: number;
 }
 
 export type TenderStage =
@@ -452,6 +454,36 @@ export interface TenderDetail {
   readonly competitionJustificationRequired?: boolean;
   readonly publicationCompetitionReason?: string | null;
   readonly estimateMissingForPublication?: boolean;
+  /**
+   * Phase 3 SI-058: the tender's latest award as the page leads with it — null for a reader who reads neither the decision nor
+   * performance, and for a tender never awarded.
+   */
+  readonly awardSummary?: AwardOutcomeSummary | null;
+}
+
+/**
+ * Phase 3 SI-058: the latest award of a tender (or of a work package): the firm, when it was issued, where it stands now (NotRecorded,
+ * AwaitingResponse, Accepted, Declined, WithdrawalPending, Withdrawn) and the acceptance date. The value and currency are commercial
+ * (null unless the reader sees commercial outcomes); the closeout status (InProgress, Closed, Reopened; null: none started) and its
+ * outcome need Performance.View. Shown only as sent — never inferred.
+ */
+export interface AwardOutcomeSummary {
+  readonly awardId: string;
+  readonly awardSequence: number;
+  readonly tenderId: string;
+  readonly tenderReference: string;
+  readonly subcontractorId: string;
+  readonly subcontractorCode: string;
+  readonly subcontractorName: string;
+  readonly awardedAtUtc: string;
+  readonly awardState: string;
+  readonly inForce: boolean;
+  readonly acceptedOn: string | null;
+  readonly awardValue: string | null;
+  readonly currency: string | null;
+  readonly closeoutStatus: string | null;
+  readonly closeoutOutcomeType: string | null;
+  readonly closeoutClosedAtUtc: string | null;
 }
 
 export type TenderClosureKind = 'Deadline' | 'Early';

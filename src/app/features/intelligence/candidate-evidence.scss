@@ -1,6 +1,7 @@
 .ce-facts {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  /* Phase 3 SI-026: a long label (Arabic especially) wraps inside its column instead of widening the card. */
+  grid-template-columns: fit-content(45%) minmax(0, 1fr);
   gap: 0.2rem 0.75rem;
   margin: 0.5rem 0 0.75rem;
 }
@@ -12,5 +13,6 @@
 
 .ce-facts dd {
   margin: 0;
+  min-inline-size: 0;
   overflow-wrap: anywhere;
 }

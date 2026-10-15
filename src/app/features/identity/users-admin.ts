@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ActingRolesPanel } from './acting-roles-panel';
@@ -40,6 +40,20 @@ export class UsersAdmin implements OnInit {
   private readonly api = inject(TenantIdentityApi);
   protected readonly session = inject(SessionService);
   readonly users = signal<TenantUser[]>([]);
+  /** Phase 3 SI-084: the directory's search (name or email) and status filter, applied on this page. */
+  readonly query = signal('');
+  readonly statusFilter = signal<'' | 'Active' | 'Invited' | 'Suspended'>('');
+  readonly visibleUsers = computed(() => {
+    const query = this.query().trim().toLowerCase();
+    const status = this.statusFilter();
+    return this.users().filter(
+      (user) =>
+        (!status || user.status === status) &&
+        (!query ||
+          user.displayName.toLowerCase().includes(query) ||
+          user.email.toLowerCase().includes(query)),
+    );
+  });
   readonly plan = signal<CompanyPlan | null>(null);
   /** Red-team B-115-2 (CF-115 AC6): who may be invited, read only; absent when it cannot be read (the invitation is still checked). */
   readonly allowList = signal<CompanyAllowList | null>(null);
@@ -202,7 +216,7 @@ export class UsersAdmin implements OnInit {
       case 'evaluation.panel':
         return $localize`:@@users.resp.panel:On the evaluation panel of ${item.reference}:ref:`;
       case 'decision.submitted_pending':
-        return $localize`:@@users.resp.decision:Submitted the decision on ${item.reference}:ref:, which only they (or an approval-matrix manager) can withdraw`;
+        return $localize`:@@users.resp.decisionRules:Submitted the decision on ${item.reference}:ref:, which only they (or someone who manages the approval rules) can withdraw`;
       default:
         return $localize`:@@users.resp.acting:Acting approver role (${item.reference}:role:) still to run`;
     }

@@ -51,7 +51,15 @@
       <div>
         <dt i18n="@@intel.scheduleVariance">Duration against awarded</dt>
         <dd>
-          <bdi dir="ltr">{{ percent(centralAt(delivery().scheduleVariance, 'percent')) }}</bdi>
+          @if (pair(delivery().scheduleVariance, 'percent'); as values) {
+            <!-- Phase 3 SI-115: two projects are shown as two values, never as their midpoint. -->
+            <span i18n="@@intel.twoValues"
+              ><bdi dir="ltr">{{ percent(values[0]) }}</bdi> and
+              <bdi dir="ltr">{{ percent(values[1]) }}</bdi></span
+            >
+          } @else {
+            <bdi dir="ltr">{{ percent(centralAt(delivery().scheduleVariance, 'percent')) }}</bdi>
+          }
           <span class="intel-sub">
             @switch (delivery().scheduleVariance.count) {
               @case (0) {
@@ -59,6 +67,9 @@
               }
               @case (1) {
                 <span i18n="@@intel.oneProject">one project</span>
+              }
+              @case (2) {
+                <span i18n="@@intel.twoProjects">two projects — too few for a central value</span>
               }
               @default {
                 <span i18n="@@intel.medianOf"
@@ -74,7 +85,14 @@
         <div>
           <dt i18n="@@intel.costVariance">Final cost against award</dt>
           <dd>
-            <bdi dir="ltr">{{ percent(centralAt(cost, 'percent')) }}</bdi>
+            @if (pair(cost, 'percent'); as values) {
+              <span i18n="@@intel.twoValues"
+                ><bdi dir="ltr">{{ percent(values[0]) }}</bdi> and
+                <bdi dir="ltr">{{ percent(values[1]) }}</bdi></span
+              >
+            } @else {
+              <bdi dir="ltr">{{ percent(centralAt(cost, 'percent')) }}</bdi>
+            }
             <span class="intel-sub">
               @switch (cost.count) {
                 @case (0) {
@@ -82,6 +100,9 @@
                 }
                 @case (1) {
                   <span i18n="@@intel.oneProject">one project</span>
+                }
+                @case (2) {
+                  <span i18n="@@intel.twoProjects">two projects — too few for a central value</span>
                 }
                 @default {
                   <span i18n="@@intel.medianOfCost"
@@ -97,12 +118,23 @@
       <div>
         <dt i18n="@@intel.quality">Quality (internal 1–5)</dt>
         <dd>
-          <bdi dir="ltr">{{ centralAt(delivery().quality, 'rating') ?? '—' }} / 5</bdi>
-          @if (delivery().quality.count >= 2) {
-            <span class="intel-sub" i18n="@@intel.ratingSample"
-              >median of <bdi dir="ltr">{{ delivery().quality.count }}</bdi> ·
-              <bdi dir="ltr">{{ range(delivery().quality, 'rating') }}</bdi></span
+          @if (pair(delivery().quality, 'rating'); as values) {
+            <!-- Phase 3 SI-115: two ratings are shown as two values, never as their midpoint. -->
+            <span i18n="@@intel.twoRatings"
+              ><bdi dir="ltr">{{ values[0] }}</bdi> and <bdi dir="ltr">{{ values[1] }}</bdi> /
+              5</span
             >
+            <span class="intel-sub" i18n="@@intel.twoProjects"
+              >two projects — too few for a central value</span
+            >
+          } @else {
+            <bdi dir="ltr">{{ centralAt(delivery().quality, 'rating') ?? '—' }} / 5</bdi>
+            @if (delivery().quality.count >= 3) {
+              <span class="intel-sub" i18n="@@intel.ratingSample"
+                >median of <bdi dir="ltr">{{ delivery().quality.count }}</bdi> ·
+                <bdi dir="ltr">{{ range(delivery().quality, 'rating') }}</bdi></span
+              >
+            }
           }
           <span class="intel-sub"
             ><span class="prj-visually-hidden" i18n="@@intel.ratingsGiven">Ratings given:</span>
@@ -113,12 +145,23 @@
       <div>
         <dt i18n="@@intel.hse">HSE / safety (internal 1–5)</dt>
         <dd>
-          <bdi dir="ltr">{{ centralAt(delivery().hse, 'rating') ?? '—' }} / 5</bdi>
-          @if (delivery().hse.count >= 2) {
-            <span class="intel-sub" i18n="@@intel.ratingSample"
-              >median of <bdi dir="ltr">{{ delivery().hse.count }}</bdi> ·
-              <bdi dir="ltr">{{ range(delivery().hse, 'rating') }}</bdi></span
+          @if (pair(delivery().hse, 'rating'); as values) {
+            <!-- Phase 3 SI-115: two ratings are shown as two values, never as their midpoint. -->
+            <span i18n="@@intel.twoRatings"
+              ><bdi dir="ltr">{{ values[0] }}</bdi> and <bdi dir="ltr">{{ values[1] }}</bdi> /
+              5</span
             >
+            <span class="intel-sub" i18n="@@intel.twoProjects"
+              >two projects — too few for a central value</span
+            >
+          } @else {
+            <bdi dir="ltr">{{ centralAt(delivery().hse, 'rating') ?? '—' }} / 5</bdi>
+            @if (delivery().hse.count >= 3) {
+              <span class="intel-sub" i18n="@@intel.ratingSample"
+                >median of <bdi dir="ltr">{{ delivery().hse.count }}</bdi> ·
+                <bdi dir="ltr">{{ range(delivery().hse, 'rating') }}</bdi></span
+              >
+            }
           }
           <span class="intel-sub"
             ><span class="prj-visually-hidden" i18n="@@intel.ratingsGiven">Ratings given:</span>
@@ -159,11 +202,38 @@
       </div>
       <!-- CF-026 / CF-023: a composite exists only for one category, beside the components above — never across trades. -->
       @if (categoryName(); as category) {
+        <!-- Phase 3 SI-046 (ADR-127): when the server sends the rule-v3 composite, it is the one a recommendation's partial history
+             rule weighs, so the profile and the recommendation show the same number; the stored v1/v2 mean keeps its own label.
+             Nothing is computed here. -->
+        @if (delivery().outcomeScoreV3; as scoreV3) {
+          <div data-testid="intel-composite-v3">
+            <dt i18n="@@intel.compositeV3For">
+              Composite for <bdi>{{ category }}</bdi> — used when a recommendation weighs partial
+              history
+            </dt>
+            <dd>
+              <bdi dir="ltr">{{ scoreV3 }} / 100</bdi>
+              <span class="intel-sub" i18n="@@intel.outcomeScoreV3Evidence"
+                >from <bdi dir="ltr">{{ evidence().completedProjects }}</bdi> projects · rule
+                <bdi dir="ltr" class="ltr-token">{{
+                  delivery().outcomeScoreV3Rule ?? 'performance-outcome-v3'
+                }}</bdi></span
+              >
+            </dd>
+          </div>
+        }
         @if (delivery().outcomeScore; as score) {
           <div data-testid="intel-composite">
-            <dt i18n="@@intel.compositeFor">
-              Composite for <bdi>{{ category }}</bdi> — used when a recommendation weighs history
-            </dt>
+            @if (delivery().outcomeScoreV3) {
+              <dt i18n="@@intel.compositeStoredFor">
+                Composite for <bdi>{{ category }}</bdi> — mean of the stored project scores, used
+                when a recommendation weighs history only if every firm has it
+              </dt>
+            } @else {
+              <dt i18n="@@intel.compositeFor">
+                Composite for <bdi>{{ category }}</bdi> — used when a recommendation weighs history
+              </dt>
+            }
             <dd>
               <bdi dir="ltr">{{ score }} / 100</bdi>
               <span class="intel-sub" i18n="@@intel.outcomeScoreEvidence"
@@ -173,7 +243,7 @@
             </dd>
           </div>
         }
-      } @else if (delivery().outcomeScore) {
+      } @else if (delivery().outcomeScore || delivery().outcomeScoreV3) {
         <div>
           <dt i18n="@@intel.compositeAllTitle">Composite</dt>
           <dd class="intel-sub" i18n="@@intel.compositeAll">
@@ -211,20 +281,35 @@
           >
           <bdi dir="ltr" class="tnd-code">{{ item.projectCode }}</bdi>
           <bdi>{{ item.workPackageTitle }}</bdi>
-          <span>{{ scheduleLabel(item.scheduleOutcome) }}</span>
-          @if (item.scheduleVariancePercent) {
-            <bdi dir="ltr">{{ percent(item.scheduleVariancePercent) }}</bdi>
+          <!-- Phase 3 SI-114 (ADR-124): a subcontract that did not complete is not compared on schedule or cost — the aggregates
+               already leave it out, and its row says how far it got instead of printing variances. -->
+          @if (endedEarly(item)) {
+            @if (item.percentComplete !== null && item.percentComplete !== undefined) {
+              <span data-testid="ended-early" i18n="@@intel.notComparedEndedEarlyAt"
+                >not compared — ended early at
+                <bdi dir="ltr">{{ item.percentComplete }} %</bdi></span
+              >
+            } @else {
+              <span data-testid="ended-early" i18n="@@intel.notComparedEndedEarly"
+                >not compared — ended early</span
+              >
+            }
+          } @else {
+            <span>{{ scheduleLabel(item.scheduleOutcome) }}</span>
+            @if (item.scheduleVariancePercent) {
+              <bdi dir="ltr">{{ percent(item.scheduleVariancePercent) }}</bdi>
+            }
+            @if (access().commercial && item.costVariancePercent) {
+              <span i18n="@@intel.costShort"
+                >cost <bdi dir="ltr">{{ percent(item.costVariancePercent) }}</bdi></span
+              >
+            }
+            <app-variance-cause
+              [cause]="item.variationCause"
+              [share]="item.variationSharePercent"
+              [residual]="item.residualCostVariancePercent"
+            />
           }
-          @if (access().commercial && item.costVariancePercent) {
-            <span i18n="@@intel.costShort"
-              >cost <bdi dir="ltr">{{ percent(item.costVariancePercent) }}</bdi></span
-            >
-          }
-          <app-variance-cause
-            [cause]="item.variationCause"
-            [share]="item.variationSharePercent"
-            [residual]="item.residualCostVariancePercent"
-          />
           <span i18n="@@intel.ratingsShort"
             >quality <bdi dir="ltr">{{ item.qualityRating }}</bdi> · HSE
             <bdi dir="ltr">{{ item.hseRating }}</bdi></span

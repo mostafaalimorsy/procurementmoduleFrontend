@@ -105,32 +105,42 @@ const PILL_OF: Readonly<Record<string, Pill>> = {
     }
   `,
   styles: `
+    /* Phase 3 SI-079: one compact band — a read-only stepper (text and separators, never pill buttons beside the real
+       tabs) and the current step with its one next action on the same row. */
     .tsh {
-      margin-block: 0 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem 1.5rem;
+      align-items: center;
+      margin-block: 0.75rem 1rem;
     }
     .tsh-steps {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.25rem;
-      margin: 0 0 0.5rem;
+      gap: 0.25rem 0;
+      margin: 0;
       padding: 0;
       list-style: none;
+      font-size: 0.85rem;
     }
     .tsh-step {
-      padding: 0.15rem 0.6rem;
-      border: 1px solid var(--color-border);
-      border-radius: 999px;
       color: var(--color-muted);
-      font-size: 0.85rem;
+    }
+    /* '›' is a mirrored character: it points the reading way in Arabic by itself. */
+    .tsh-step + .tsh-step::before {
+      content: '›';
+      margin-inline: 0.45rem;
+      color: var(--color-border);
     }
     .tsh-step--done {
       color: var(--color-ink);
     }
     .tsh-step--current {
-      border-color: var(--color-accent);
-      background: var(--color-accent);
-      color: var(--color-surface);
-      font-weight: 600;
+      color: var(--color-accent);
+      font-weight: 700;
+      text-decoration: underline;
+      text-decoration-thickness: 2px;
+      text-underline-offset: 0.3em;
     }
     .tsh-now {
       display: flex;
@@ -226,6 +236,22 @@ export class TenderStageHeader {
           manager,
         );
       case 'Opened':
+        // Phase 3 SI-029: a reader without Decision.View sees every post-opening step as "Opened" (ADR-114, intended), so the
+        // tender may already be in its decision: a neutral line with no link, rather than a possibly stale "Go to the evaluation".
+        if (!can('Decision.View'))
+          return {
+            link: null,
+            page: 'evaluation',
+            label: $localize`:@@stageHeader.afterOpening:Bids are opened; evaluation and the decision follow`,
+            role: manager,
+          };
+        return step(
+          'Evaluation.View',
+          'evaluation',
+          ['/tenders', id, 'evaluation'],
+          $localize`:@@stageHeader.evaluation:Go to the evaluation`,
+          manager,
+        );
       case 'InEvaluation':
       case 'EvaluationRefresh':
         return step(

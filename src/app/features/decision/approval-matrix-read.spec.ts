@@ -78,7 +78,7 @@ describe('Approval routes for approvers (CF-136)', () => {
     ['ProcurementManager', 'Decision.Submit'],
   ])('shows a %s every active rule in priority order and the default route', (role, permission) => {
     const element = render(readMatrix(), [role], ['Decision.View', permission]);
-    expect(text(element.querySelector('h1')!)).toContain('Approval routes');
+    expect(text(element.querySelector('h1')!)).toContain('Approval rules');
     const items = [...element.querySelectorAll('.matrix-read-list li')];
     expect(items.map((item) => text(item.querySelector('strong')!).trim())).toEqual([
       'Up to 5M',

@@ -122,6 +122,21 @@ export function centralAt(
     : roundDecimal(value, samplePrecision(summary.count, kind));
 }
 
+/**
+ * Phase 3 SI-115: with exactly two observations there is no meaningful central value (the median of 0 % and +250 % is +125 %,
+ * which matches neither project), so both values are shown instead, at the sample's precision. Null for any other count.
+ */
+export function pair(
+  summary: SampleSummary | null | undefined,
+  kind: 'rating' | 'percent',
+): readonly [string, string] | null {
+  if (!summary || summary.count !== 2 || summary.minimum === null || summary.maximum === null)
+    return null;
+  // Each value is one project's: a rating is a whole number, a percentage keeps the sample's one decimal.
+  const decimals = kind === 'rating' ? 0 : samplePrecision(2, kind);
+  return [roundDecimal(summary.minimum, decimals), roundDecimal(summary.maximum, decimals)];
+}
+
 /** CF-124 (ADR-128): the share of the bidding window used before the first bid, as a whole percent (null without a submission). */
 export function windowShare(summary: SampleSummary | null | undefined): string | null {
   const value = central(summary);

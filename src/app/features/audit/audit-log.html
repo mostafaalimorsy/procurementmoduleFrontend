@@ -141,77 +141,117 @@
       <p class="prj-hint" i18n="@@audit.count">
         Entries: <bdi dir="ltr">{{ page.totalCount }}</bdi>
       </p>
-      <ol class="aud-list" role="list">
-        @for (entry of page.items; track entry.id) {
-          <li class="prj-card">
-            <p class="aud-when">
-              <bdi>{{ entry.occurredAtUtc | businessDate: 'instant' }}</bdi>
-              · <span class="prj-chip">{{ areaLabel(entry.area) }}</span>
-            </p>
-            <p class="aud-what">
-              <bdi>{{ actorLabel(entry) }}</bdi>
-              <!-- CF-100 (ADR-160): the event by name; the code on hover and in the export; the reference opens its record via search. -->
-              <span class="aud-action" [title]="entry.action">{{ actionLabel(entry.action) }}</span>
-              @if (entry.reference) {
-                <a class="aud-ref" [routerLink]="['/search']" [queryParams]="{ q: entry.reference }"
-                  ><bdi dir="ltr">{{ entry.reference }}</bdi></a
-                >
-              }
-              @if (entry.targetErased) {
-                <span i18n="@@audit.concerningErased">concerning an erased user</span>
-              } @else if (entry.targetName) {
-                <span i18n="@@audit.concerning"
-                  >concerning <bdi>{{ entry.targetName }}</bdi></span
-                >
-              }
-            </p>
-            @if (entry.details.length > 0) {
-              <dl class="aud-details">
-                @for (detail of entry.details; track detail.key) {
-                  <div>
-                    <dt [title]="detail.key">{{ detailLabel(detail.key) }}</dt>
-                    <dd>
-                      <bdi>{{ detail.value }}</bdi>
-                    </dd>
-                  </div>
-                }
-              </dl>
+      <!-- Phase 3 SI-093: a readable log — when, who, what and the record; the stored identifiers (details, request id,
+           address, browser) stay one click away under Details (ADR-160), and in the CSV export unchanged. -->
+      <div class="prj-table-wrap">
+        <table class="prj-table prj-table--stack aud-table">
+          <caption class="prj-visually-hidden" i18n="@@audit.caption">
+            Audit entries, newest first
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col" i18n="@@audit.colWhen">When</th>
+              <th scope="col" i18n="@@audit.colWho">Who</th>
+              <th scope="col" i18n="@@audit.colWhat">What</th>
+              <th scope="col" i18n="@@audit.colDetails">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (entry of page.items; track entry.id) {
+              <tr>
+                <td data-label="When" i18n-data-label="@@audit.colWhen">
+                  <bdi>{{ entry.occurredAtUtc | businessDate: 'instant' }}</bdi>
+                  <span class="prj-chip tnd-block aud-area">{{ areaLabel(entry.area) }}</span>
+                </td>
+                <td data-label="Who" i18n-data-label="@@audit.colWho">
+                  <bdi>{{ actorLabel(entry) }}</bdi>
+                </td>
+                <td data-label="What" i18n-data-label="@@audit.colWhat">
+                  <span class="aud-what">
+                    <!-- CF-100 (ADR-160): the event by name; the code on hover and in the export; the reference opens its record via search. -->
+                    <span class="aud-action" [title]="entry.action">{{
+                      actionLabel(entry.action)
+                    }}</span>
+                    @if (entry.reference) {
+                      <a
+                        class="aud-ref"
+                        [routerLink]="['/search']"
+                        [queryParams]="{ q: entry.reference }"
+                        ><bdi dir="ltr">{{ entry.reference }}</bdi></a
+                      >
+                    }
+                    @if (entry.targetErased) {
+                      <span i18n="@@audit.concerningErased">concerning an erased user</span>
+                    } @else if (entry.targetName) {
+                      <span i18n="@@audit.concerning"
+                        >concerning <bdi>{{ entry.targetName }}</bdi></span
+                      >
+                    }
+                  </span>
+                </td>
+                <td data-label="Details" i18n-data-label="@@audit.colDetails">
+                  @if (
+                    entry.details.length > 0 ||
+                    entry.request ||
+                    entry.actorKind === 'User' ||
+                    entry.actorKind === 'Platform'
+                  ) {
+                    <details class="aud-more">
+                      <summary i18n="@@audit.showDetails">Details</summary>
+                      @if (entry.details.length > 0) {
+                        <dl class="aud-details">
+                          @for (detail of entry.details; track detail.key) {
+                            <div>
+                              <dt [title]="detail.key">{{ detailLabel(detail.key) }}</dt>
+                              <dd>
+                                <bdi>{{ detail.value }}</bdi>
+                              </dd>
+                            </div>
+                          }
+                        </dl>
+                      }
+                      @if (entry.request; as request) {
+                        <p class="prj-hint aud-request" data-testid="audit-request">
+                          @if (request.requestId) {
+                            <span i18n="@@audit.request"
+                              >Request <code dir="ltr">{{ request.requestId }}</code></span
+                            >
+                            <button
+                              class="prj-btn prj-btn--ghost aud-request-show"
+                              type="button"
+                              (click)="showRequest(request.requestId)"
+                              i18n="@@audit.requestShow"
+                            >
+                              Entries of this request
+                            </button>
+                          }
+                          @if (request.sourceAddress) {
+                            <span i18n="@@audit.requestFrom"
+                              >from <bdi dir="ltr">{{ request.sourceAddress }}</bdi></span
+                            >
+                          }
+                          @if (request.userAgent) {
+                            <bdi dir="ltr" class="aud-agent" [title]="request.userAgent">{{
+                              request.userAgent
+                            }}</bdi>
+                          }
+                        </p>
+                      } @else if (entry.actorKind === 'User' || entry.actorKind === 'Platform') {
+                        <!-- CF-122 AC8: a person's event from before request capture says so, rather than showing nothing. -->
+                        <p class="prj-hint aud-request" data-testid="audit-request-missing">
+                          <span i18n="@@audit.requestNotRecorded">Request not recorded</span>
+                        </p>
+                      }
+                    </details>
+                  } @else {
+                    <span class="prj-hint" aria-hidden="true">—</span>
+                  }
+                </td>
+              </tr>
             }
-            @if (entry.request; as request) {
-              <p class="prj-hint aud-request" data-testid="audit-request">
-                @if (request.requestId) {
-                  <span i18n="@@audit.request"
-                    >Request <code dir="ltr">{{ request.requestId }}</code></span
-                  >
-                  <button
-                    class="prj-btn prj-btn--ghost aud-request-show"
-                    type="button"
-                    (click)="showRequest(request.requestId)"
-                    i18n="@@audit.requestShow"
-                  >
-                    Entries of this request
-                  </button>
-                }
-                @if (request.sourceAddress) {
-                  <span i18n="@@audit.requestFrom"
-                    >from <bdi dir="ltr">{{ request.sourceAddress }}</bdi></span
-                  >
-                }
-                @if (request.userAgent) {
-                  <bdi dir="ltr" class="aud-agent" [title]="request.userAgent">{{
-                    request.userAgent
-                  }}</bdi>
-                }
-              </p>
-            } @else if (entry.actorKind === 'User' || entry.actorKind === 'Platform') {
-              <!-- CF-122 AC8: a person's event from before request capture says so, rather than showing nothing. -->
-              <p class="prj-hint aud-request" data-testid="audit-request-missing">
-                <span i18n="@@audit.requestNotRecorded">Request not recorded</span>
-              </p>
-            }
-          </li>
-        }
-      </ol>
+          </tbody>
+        </table>
+      </div>
       @if (page.totalPages > 1) {
         <nav class="prj-pager" aria-label="Audit log pages" i18n-aria-label="@@audit.pages">
           <span i18n="@@common.pageOf"

@@ -2,7 +2,17 @@
 @let base = item.baseline;
 <section class="prj-section" aria-labelledby="award-title">
   <h2 id="award-title" class="dc-heading">
-    <span i18n="@@award.title">Award</span>
+    @switch (ended()) {
+      @case ('Withdrawn') {
+        <span i18n="@@award.titleWithdrawn">Award withdrawn</span>
+      }
+      @case ('Declined') {
+        <span i18n="@@award.titleDeclined">Award declined by the firm</span>
+      }
+      @default {
+        <span i18n="@@award.title">Award</span>
+      }
+    }
     @if (base.fingerprintVerified) {
       <span class="prj-chip dc-state dc-state--good" i18n="@@award.verified"
         >Baseline fingerprint verified</span
@@ -19,7 +29,21 @@
     <bdi>{{ item.awardedByName }}</bdi> (decision version {{ item.submissionNumber }}).
   </p>
 
-  @if (showCloseout()) {
+  @if (ended(); as state) {
+    <p class="prj-note" role="note" data-testid="award-ended">
+      @if (state === 'Withdrawn') {
+        <span i18n="@@award.endedWithdrawn"
+          >This award was withdrawn and is no longer in force. No performance closeout applies to
+          it.</span
+        >
+      } @else {
+        <span i18n="@@award.endedDeclined"
+          >The firm declined this award, so it is not in force. No performance closeout applies to
+          it.</span
+        >
+      }
+    </p>
+  } @else if (showCloseout()) {
     <p>
       <a
         class="prj-btn prj-btn--ghost"
@@ -27,6 +51,15 @@
         i18n="@@award.closeout"
         >Performance closeout</a
       >
+    </p>
+  } @else if (item.state === 'WithdrawalPending') {
+    <!-- Phase 3 SI-060: the server offers no closeout while a withdrawal awaits approval. -->
+    <p class="prj-hint" i18n="@@award.closeoutWithdrawalPending">
+      A withdrawal of this award awaits approval; no performance closeout is offered meanwhile.
+    </p>
+  } @else if (!closeoutApplies()) {
+    <p class="prj-hint" i18n="@@award.closeoutAfterAcceptance">
+      The performance closeout starts once the firm accepts the award.
     </p>
   }
   <h3 i18n="@@award.baselineTitle">Award baseline</h3>

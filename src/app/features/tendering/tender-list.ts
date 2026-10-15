@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import {
   BusinessDatePipe,
   tenderLocalTime,
@@ -13,6 +13,7 @@ import {
   tenderTypeLabel,
 } from '../../core/localization/labels';
 import { LocaleService } from '../../core/localization/locale.service';
+import { listUrlState, oneOfParam, pageParam } from '../../core/navigation/list-url-state';
 import { Paged } from '../subcontractors/subcontractors.api';
 import {
   TENDER_STAGES,
@@ -35,7 +36,9 @@ import {
 })
 export class TenderList implements OnInit {
   private readonly api = inject(TenderingApi);
-  private readonly route = inject(ActivatedRoute);
+  private readonly url = listUrlState();
+  /** The list state on screen (its URL key), so a URL that already says so does not load it twice. */
+  private shown = '';
   private readonly locale = inject(LocaleService).locale;
 
   readonly statusLabel = tenderStatusLabel;
@@ -62,23 +65,54 @@ export class TenderList implements OnInit {
   page = 1;
 
   ngOnInit(): void {
-    // Part 12: a dashboard link may open the list already filtered.
-    const params = this.route.snapshot?.queryParamMap;
-    const stage = params?.get('stage') ?? null;
-    if (this.stages.includes(stage as TenderStage)) this.stage = stage as TenderStage;
-    // Older links filtered by stored status: Draft and Cancelled are stages too; "Published" spans several stages, so it shows all.
-    const status = params?.get('status') ?? null;
-    if (!this.stage && (status === 'Draft' || status === 'Cancelled')) this.stage = status;
-    this.load();
+    // Phase 3 SI-065: the URL holds the stage, search and page (Back, reload and a shared link keep them); a dashboard link may
+    // open the list already filtered.
+    this.url.watch((params) => {
+      let stage: TenderStage | '' = oneOfParam(params, 'stage', this.stages);
+      // Older links filtered by stored status: Draft and Cancelled are stages too; "Published" spans several stages, so it shows all.
+      const status = params.get('status');
+      if (!stage && (status === 'Draft' || status === 'Cancelled')) stage = status;
+      this.stage = stage;
+      this.search = params.get('q') ?? '';
+      this.page = pageParam(params);
+      const shown = this.url.key({
+        stage: this.stage,
+        q: this.search.trim(),
+        page: this.page,
+        status: null,
+      });
+      if (shown === this.shown) return;
+      this.shown = shown;
+      this.load();
+    });
   }
 
   applyFilter(): void {
     this.page = 1;
-    this.load();
+    this.sync();
   }
 
   goToPage(page: number): void {
     this.page = page;
+    this.sync();
+  }
+
+  /**
+   * Phase 3 SI-029: the next date that still matters — the submission deadline while bidding is open or awaiting the opening;
+   * after that the row shows none (an awarded or cancelled tender no longer has a deadline to act on).
+   */
+  showsDeadline(item: TenderSummary): boolean {
+    const stage = item.stage ?? (item.status === 'Draft' ? 'Draft' : null);
+    return (
+      !!item.submissionDeadlineUtc &&
+      (stage === 'Draft' || stage === 'OpenForBids' || stage === 'AwaitingOpening')
+    );
+  }
+
+  private sync(): void {
+    const values = { stage: this.stage, q: this.search.trim(), page: this.page, status: null };
+    this.url.write(values);
+    this.shown = this.url.key(values);
     this.load();
   }
 

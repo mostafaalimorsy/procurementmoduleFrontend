@@ -192,6 +192,7 @@ describe('tender list', () => {
       updatedAtUtc: '2026-10-01T09:00:00Z',
       stage: 'OpenForBids',
       lifecycle: 'OpenForBids',
+      submittedCount: 2,
     };
     // CF-009: an awarded tender reads where it is, never "Published".
     const awarded: TenderSummary = {
@@ -209,9 +210,12 @@ describe('tender list', () => {
     expect(element.querySelector('table')).not.toBeNull();
     expect(element.querySelector('a[href="/tenders/t1"]')?.textContent).toContain('TND-2026-0001');
     expect(text(element)).toContain('Bidding closes soon');
-    expect(text(element)).toContain(
-      'Invited: 3 · Intend to bid, not yet submitted: 1 · Declined: 1',
-    );
+    // Phase 3 SI-029: bids received out of those invited first; the rest of the answers below.
+    expect(text(element)).toContain('2 of 3 invited');
+    expect(text(element)).toContain('Intend to bid: 1 · Declined: 1');
+    // An awarded tender no longer shows a deadline to act on.
+    const awardedDeadline = element.querySelectorAll('tbody tr')[1].querySelectorAll('td')[3];
+    expect(text(awardedDeadline as HTMLElement)).toContain('No open deadline');
     expect(text(element)).toContain('Failed emails: 1');
     expect(text(element)).toContain('Open for bids');
     expect(text(element)).toContain("Awarded — awaiting the firm's answer");
@@ -248,6 +252,7 @@ describe('tender list', () => {
       intendsToBidCount: 1,
       declinedCount: 0,
       failedDeliveryCount: 0,
+      submittedCount: 0,
       updatedAtUtc: '2026-10-01T09:00:00Z',
       stage: 'OpenForBids',
       submissionDeadline: {
@@ -280,8 +285,33 @@ describe('tender list', () => {
     const utc = TestBed.inject(BusinessFormat).dateTime('2026-10-15T11:00:00Z');
     expect(utc).toContain('UTC');
     expect(cells[0].getAttribute('title')).toBe(utc);
-    expect(text(cells[1]).trim()).toBe('—');
+    expect(text(cells[1]).trim()).toBe('—No open deadline');
     expect(cells[1].hasAttribute('title')).toBe(false);
+    http.verify();
+  });
+});
+
+describe('tender list in the URL (Phase 3 SI-065)', () => {
+  it('writes the stage, search and page into the URL and restores them from it', async () => {
+    const http = configure(VIEWER);
+    const router = TestBed.inject(Router);
+    await router.navigateByUrl('/?stage=Awarded&q=HVAC&page=2');
+    const fixture = TestBed.createComponent(TenderList);
+    fixture.detectChanges();
+    const first = http.expectOne((request) => request.url === '/api/v1/tenders');
+    expect(first.request.params.getAll('stage')).toEqual(['Awarded']);
+    expect(first.request.params.get('search')).toBe('HVAC');
+    expect(first.request.params.get('page')).toBe('2');
+    first.flush(paged([]));
+    fixture.componentInstance.stage = 'OpenForBids';
+    fixture.componentInstance.search = 'TND';
+    fixture.componentInstance.applyFilter();
+    http.expectOne((request) => request.url === '/api/v1/tenders').flush(paged([]));
+    await fixture.whenStable();
+    expect(router.url).toContain('stage=OpenForBids');
+    expect(router.url).toContain('q=TND');
+    expect(router.url).not.toContain('page=');
+    // The URL change the list wrote itself does not load the same rows twice.
     http.verify();
   });
 });
@@ -1144,7 +1174,8 @@ describe('work package tender panel', () => {
     });
     expect(typeof create.request.body.timeZoneId).toBe('string');
     create.flush(tender());
-    expect(navigate).toHaveBeenCalledWith(['/tenders', 't1']);
+    // Phase 3 SI-143: the new draft's page confirms the creation.
+    expect(navigate).toHaveBeenCalledWith(['/tenders', 't1'], { state: { saved: 'created' } });
     http.verify();
   });
 
@@ -1309,5 +1340,125 @@ describe('File sizes (CF-098)', () => {
     expect(fileSize(1536, 'en')).toBe('1.5 kB');
     expect(fileSize(25 * 1024 * 1024, 'en')).toBe('25 MB');
     expect(fileSize(0, 'en')).toBe('0.1 kB');
+  });
+});
+
+describe('The tender leads with its outcome once awarded (Phase 3 SI-058)', () => {
+  const closure = {
+    kind: 'Early' as const,
+    closedAt: { utc: '2026-10-03T09:00:00Z', local: '2026-10-03T12:00', offset: '+03:00' },
+    scheduledDeadline: { utc: '2026-10-06T09:00:00Z', local: '2026-10-06T12:00', offset: '+03:00' },
+    closedByName: 'Maha Manager',
+    reason: 'Enough submissions',
+    bidsOpenedAtUtc: '2026-10-03T10:00:00Z',
+  };
+  const summary = {
+    awardId: 'a1',
+    awardSequence: 1,
+    tenderId: 't1',
+    tenderReference: 'TND-2026-0001',
+    subcontractorId: 's1',
+    subcontractorCode: 'ACME-01',
+    subcontractorName: 'Acme Mechanical',
+    awardedAtUtc: '2026-10-08T09:00:00Z',
+    awardState: 'Accepted',
+    inForce: true,
+    acceptedOn: '2026-10-09',
+    awardValue: '987500.00',
+    currency: 'QAR',
+    closeoutStatus: 'Closed',
+    closeoutOutcomeType: 'Completed',
+    closeoutClosedAtUtc: '2026-12-01T09:00:00Z',
+  };
+  const ALL = [...FEATURES, 'evaluation', 'award', 'performance'];
+  const READER = ['Tenders.View', 'Decision.View', 'Performance.View', 'Subcontractors.View'];
+
+  it('shows the winner, state, value and closeout first, and the closure notice after them', () => {
+    const { element } = renderControl(
+      READER,
+      published({ closure, awardedAtUtc: '2026-10-08T09:00:00Z', awardSummary: summary }),
+      ALL,
+    );
+    const block = element.querySelector('[data-testid="award-summary"]') as HTMLElement;
+    expect(block).not.toBeNull();
+    expect(text(block)).toContain('Outcome');
+    expect(text(block)).toContain('Accepted by the subcontractor');
+    expect(text(block)).toContain('987,500.00 QAR');
+    expect(block.querySelector('[data-testid="award-summary-firm"]')!.getAttribute('href')).toBe(
+      '/subcontractors/s1',
+    );
+    expect(
+      block.querySelector('[data-testid="award-summary-closeout"]')!.getAttribute('href'),
+    ).toBe('/closeouts/a1');
+    expect(text(block)).toContain('Closeout finalized');
+    const notice = element.querySelector('[data-testid="closure-notice"]') as HTMLElement;
+    expect(text(notice)).toContain('This tender was closed early.');
+    expect(notice.classList.contains('tnd-attention-box')).toBe(false);
+    expect(block.compareDocumentPosition(notice) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The first block on the page is the outcome.
+    expect(element.firstElementChild?.tagName.toLowerCase()).toBe('app-award-summary');
+  });
+
+  it('shows no value or closeout the server did not send, and reads a withdrawn award as not in force', () => {
+    const { element } = renderControl(
+      ['Tenders.View', 'Decision.View'],
+      published({
+        status: 'ClosedWithoutActiveAward',
+        closure,
+        awardSummary: {
+          ...summary,
+          awardState: 'Withdrawn',
+          inForce: false,
+          acceptedOn: null,
+          awardValue: null,
+          currency: null,
+          closeoutStatus: null,
+          closeoutOutcomeType: null,
+          closeoutClosedAtUtc: null,
+        },
+      }),
+      ALL,
+    );
+    const block = element.querySelector('[data-testid="award-summary"]') as HTMLElement;
+    expect(text(block)).toContain('Last award to');
+    expect(text(block)).toContain('Withdrawn');
+    expect(block.querySelector('[data-testid="award-summary-value"]')).toBeNull();
+    expect(block.querySelector('a[href^="/closeouts/"]')).toBeNull();
+    expect(text(block)).not.toContain('Performance closeout');
+    // Without the directory, the firm is text.
+    expect(block.querySelector('[data-testid="award-summary-firm"]')!.hasAttribute('href')).toBe(
+      false,
+    );
+  });
+
+  it('keeps the closure notice first and highlighted while there is no award', () => {
+    const { element } = renderControl(['Tenders.View'], published({ closure }));
+    expect(element.querySelector('[data-testid="award-summary"]')).toBeNull();
+    const notice = element.querySelector('[data-testid="closure-notice"]') as HTMLElement;
+    expect(notice.classList.contains('tnd-attention-box')).toBe(true);
+  });
+});
+
+describe('Invitations once bidding is over (Phase 3 SI-107)', () => {
+  const states = (element: HTMLElement) =>
+    [...element.querySelectorAll('.tnd-response')].map((chip) => text(chip as HTMLElement).trim());
+
+  it('reads an unanswered invitation of a tender closed without an award as no response, not "No response yet"', () => {
+    const { element } = renderControl(
+      ['Tenders.View'],
+      published({ status: 'ClosedWithoutActiveAward', invitations: [invitation()] }),
+    );
+    expect(states(element)).toEqual(['No response (bidding closed)']);
+  });
+
+  it('does the same on a cancelled tender, and keeps "No response yet" while bidding is open', () => {
+    let { element } = renderControl(
+      ['Tenders.View'],
+      published({ status: 'Cancelled', invitations: [invitation({ status: 'IntendsToBid' })] }),
+    );
+    expect(states(element)).toEqual(['No response (bidding closed)']);
+    TestBed.resetTestingModule();
+    ({ element } = renderControl(['Tenders.View'], published()));
+    expect(states(element)).toEqual(['No response yet']);
   });
 });

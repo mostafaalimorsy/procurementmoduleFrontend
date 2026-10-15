@@ -285,7 +285,8 @@
               <p class="ev-total" role="status">
                 @if (card.weightedTotal !== null) {
                   <span i18n="@@evaluation.weightedTotal"
-                    >Weighted total: <bdi dir="ltr">{{ card.weightedTotal }}</bdi> / 100</span
+                    >Weighted total: <bdi dir="ltr">{{ scoreText(card.weightedTotal) }}</bdi> /
+                    100</span
                   >
                 } @else {
                   <span class="prj-hint" i18n="@@evaluation.weightedTotalPending"
@@ -367,8 +368,8 @@
                 <summary>
                   <bdi>{{ card.evaluatorName }}</bdi> ·
                   <span i18n="@@evaluation.submittedTotal"
-                    >total <bdi dir="ltr">{{ card.weightedTotal }}</bdi> / 100 · submission
-                    {{ card.number }}</span
+                    >total <bdi dir="ltr">{{ scoreText(card.weightedTotal) }}</bdi> / 100 ·
+                    submission {{ card.number }}</span
                   >
                   · {{ card.submittedAtUtc | businessDate: 'instant' }}
                   @if (card.scoresCurrentResponse === false) {

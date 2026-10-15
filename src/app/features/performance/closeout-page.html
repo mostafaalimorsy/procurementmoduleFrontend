@@ -2,7 +2,10 @@
   <nav class="prj-crumbs" aria-label="Breadcrumb" i18n-aria-label="@@a11y.breadcrumb">
     <a routerLink="/closeouts" i18n="@@nav.closeouts">Closeouts</a><span aria-hidden="true">/</span>
     @if (workspace(); as view) {
-      <bdi dir="ltr">{{ view.baseline.tenderReference }}</bdi>
+      <!-- Phase 3 SI-066: the closeout links back up to its tender (plain text for a reader who cannot open it). -->
+      <a [routerLink]="links.tender(view.baseline.tenderId)"
+        ><bdi dir="ltr">{{ view.baseline.tenderReference }}</bdi></a
+      >
     } @else {
       <span i18n="@@closeout.crumb">Closeout</span>
     }
@@ -30,11 +33,18 @@
     <div class="prj-head">
       <div>
         <p class="prj-eyebrow">
-          <bdi dir="ltr">{{ base.tenderReference }}</bdi> ·
+          <a [routerLink]="links.tender(base.tenderId)" data-testid="closeout-tender-link"
+            ><bdi dir="ltr">{{ base.tenderReference }}</bdi></a
+          >
+          ·
           <ng-container i18n="@@closeout.eyebrow">Performance closeout</ng-container>
         </p>
         <h1>
-          <bdi>{{ base.subcontractorName }}</bdi>
+          <a
+            [routerLink]="links.subcontractor(base.subcontractorId)"
+            data-testid="closeout-firm-link"
+            ><bdi>{{ base.subcontractorName }}</bdi></a
+          >
         </h1>
         <p class="tnd-meta">
           <bdi dir="ltr" class="tnd-code">{{ base.subcontractorCode }}</bdi>
@@ -48,31 +58,59 @@
           <span class="prj-chip">{{ categoryLabel(base.category) }}</span>
         </p>
         <p class="prj-hint">
-          <bdi dir="ltr" class="tnd-code">{{ base.projectCode }}</bdi
-          >{{ ' ' }}<bdi>{{ base.projectName }}</bdi> ·
-          <bdi dir="ltr" class="tnd-code">{{ base.workPackageCode }}</bdi
-          >{{ ' ' }}<bdi>{{ base.workPackageTitle }}</bdi>
+          <a [routerLink]="links.project(base.projectId)" data-testid="closeout-project-link"
+            ><bdi dir="ltr" class="tnd-code">{{ base.projectCode }}</bdi
+            >{{ ' ' }}<bdi>{{ base.projectName }}</bdi></a
+          >
+          ·
+          <a
+            [routerLink]="links.workPackage(base.workPackageId)"
+            data-testid="closeout-package-link"
+            ><bdi dir="ltr" class="tnd-code">{{ base.workPackageCode }}</bdi
+            >{{ ' ' }}<bdi>{{ base.workPackageTitle }}</bdi></a
+          >
         </p>
       </div>
-      <p class="pf-progress" aria-live="polite">
-        @if (view.completeness.complete) {
-          <span class="dc-state dc-state--good" i18n="@@closeout.completeShort"
-            >All required evidence recorded</span
-          >
-        } @else {
-          <span i18n="@@closeout.progress"
-            >Recorded
-            <bdi dir="ltr">{{ view.completeness.recorded }} / {{ view.completeness.required }}</bdi>
-            required items</span
+      @if (!stepsHidden()) {
+        <p class="pf-progress" aria-live="polite">
+          @if (view.completeness.complete) {
+            <span class="dc-state dc-state--good" i18n="@@closeout.completeShort"
+              >All required evidence recorded</span
+            >
+          } @else {
+            <span i18n="@@closeout.progress"
+              >Recorded
+              <bdi dir="ltr"
+                >{{ view.completeness.recorded }} / {{ view.completeness.required }}</bdi
+              >
+              required items</span
+            >
+          }
+          <progress
+            [value]="view.completeness.recorded"
+            [max]="view.completeness.required"
+            aria-hidden="true"
+          ></progress>
+        </p>
+      }
+    </div>
+
+    <!-- Phase 3 SI-060 (ADR-110): an award not in force has no closeout — said first; with nothing recorded, no step is offered
+         (the step list is left out and the panel stays empty and hidden). -->
+    @if (notApplicable()) {
+      <p class="prj-note tnd-attention-box" role="note" data-testid="closeout-not-applicable">
+        <strong i18n="@@closeout.notApplicableTitle">Closeout not applicable</strong>
+        <span class="tnd-block">{{ notApplicableNote() }}</span>
+        @if (readsDecision) {
+          <a
+            [routerLink]="['/tenders', base.tenderId, 'decision']"
+            [queryParams]="{ tab: 'award' }"
+            i18n="@@closeout.notApplicableAwardLink"
+            >Open the award</a
           >
         }
-        <progress
-          [value]="view.completeness.recorded"
-          [max]="view.completeness.required"
-          aria-hidden="true"
-        ></progress>
       </p>
-    </div>
+    }
 
     @if (!base.baselineVerified) {
       <p class="prj-note prj-note--error" role="alert" i18n="@@closeout.baselineNotVerified">
@@ -81,37 +119,41 @@
       </p>
     }
 
-    <div
-      class="dc-tabs pf-steps"
-      role="tablist"
-      aria-label="Closeout steps"
-      i18n-aria-label="@@closeout.steps"
-    >
-      @for (entry of steps; track entry; let index = $index) {
-        <button
-          type="button"
-          role="tab"
-          [id]="'closeout-step-' + entry"
-          [attr.aria-selected]="step() === entry"
-          [attr.aria-controls]="step() === entry ? 'closeout-panel-' + entry : null"
-          [attr.tabindex]="step() === entry ? 0 : -1"
-          [class.is-active]="step() === entry"
-          (click)="selectStep(entry)"
-          (keydown)="stepKey($event, index)"
-        >
-          <span class="pf-step-number" aria-hidden="true"
-            ><bdi dir="ltr">{{ index + 1 }}</bdi></span
+    @if (!stepsHidden()) {
+      <div
+        class="dc-tabs pf-steps"
+        role="tablist"
+        aria-label="Closeout steps"
+        i18n-aria-label="@@closeout.steps"
+      >
+        @for (entry of steps; track entry; let index = $index) {
+          <button
+            type="button"
+            role="tab"
+            [id]="'closeout-step-' + entry"
+            [attr.aria-selected]="step() === entry"
+            [attr.aria-controls]="step() === entry ? 'closeout-panel-' + entry : null"
+            [attr.tabindex]="step() === entry ? 0 : -1"
+            [class.is-active]="step() === entry"
+            (click)="selectStep(entry)"
+            (keydown)="stepKey($event, index)"
           >
-          {{ stepLabel(entry) }}
-          @if (missingIn(entry) > 0 && !closed()) {
-            <span class="pf-missing-count">
-              <span class="prj-visually-hidden" i18n="@@closeout.stepMissing">items missing:</span>
-              <bdi dir="ltr">{{ missingIn(entry) }}</bdi>
-            </span>
-          }
-        </button>
-      }
-    </div>
+            <span class="pf-step-number" aria-hidden="true"
+              ><bdi dir="ltr">{{ index + 1 }}</bdi></span
+            >
+            {{ stepLabel(entry) }}
+            @if (missingIn(entry) > 0 && !closed()) {
+              <span class="pf-missing-count">
+                <span class="prj-visually-hidden" i18n="@@closeout.stepMissing"
+                  >items missing:</span
+                >
+                <bdi dir="ltr">{{ missingIn(entry) }}</bdi>
+              </span>
+            }
+          </button>
+        }
+      </div>
+    }
 
     <div
       [id]="'closeout-panel-' + step()"
@@ -119,8 +161,9 @@
       tabindex="-1"
       class="pf-panel"
       [attr.aria-labelledby]="'closeout-step-' + step()"
+      [hidden]="stepsHidden()"
     >
-      @if (sectionOf(step()); as section) {
+      @if (!stepsHidden() && sectionOf(step()); as section) {
         @if (!canEdit(section)) {
           <p class="prj-hint pf-owner">
             @if (closed()) {
@@ -153,7 +196,7 @@
         }
       }
 
-      @switch (step()) {
+      @switch (stepsHidden() ? null : step()) {
         @case ('outcome') {
           <section class="prj-section" aria-labelledby="promise-title">
             <h2 id="promise-title" i18n="@@closeout.promiseTitle">Awarded, actual and variance</h2>

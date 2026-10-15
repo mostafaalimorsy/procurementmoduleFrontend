@@ -246,7 +246,16 @@
                         <bdi dir="ltr">{{ participant.recipientEmail }}</bdi></small
                       >
                     </th>
-                    <td>{{ participantLabel(participant.status) }}</td>
+                    <td>
+                      <!-- Phase 3 SI-112: a response to a cancelled round was never evaluated; it does not read as "Submitted". -->
+                      @if (round.status === 'Cancelled' && participant.status === 'Submitted') {
+                        <span i18n="@@negotiation.notEvaluatedCancelled"
+                          >Not evaluated (round cancelled)</span
+                        >
+                      } @else {
+                        {{ participantLabel(participant.status) }}
+                      }
+                    </td>
                     <td>
                       @if (participant.emailStatus) {
                         {{ emailLabel(participant.emailStatus) }}

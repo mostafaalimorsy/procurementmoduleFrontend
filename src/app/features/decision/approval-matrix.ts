@@ -20,6 +20,7 @@ import {
   decisionProblemMessage,
 } from './decision.api';
 import { approverRoleLabel } from './decision-labels';
+import { CoverageBand, CoverageRule, CurrencyCoverage, matrixCoverage } from './approval-coverage';
 
 interface RuleForm {
   name: string;
@@ -80,6 +81,8 @@ export class ApprovalMatrixPage implements OnInit {
       (a, b) => a.priority - b.priority || a.name.localeCompare(b.name),
     ),
   );
+  /** Phase 3 SI-122: what the saved matrix decides across the value axis, per currency (gaps and shadowed rules). */
+  readonly coverage = computed<readonly CurrencyCoverage[]>(() => matrixCoverage(this.rules()));
   readonly approvalCounts = computed(() =>
     Array.from({ length: (this.matrix()?.maximumApprovals ?? 3) + 1 }, (_, index) => index),
   );
@@ -118,8 +121,49 @@ export class ApprovalMatrixPage implements OnInit {
   }
 
   range(rule: ApprovalRule): string {
-    const min = rule.minimumValue ? ltr(money(rule.minimumValue, this.locale)) : null;
-    const max = rule.maximumValue ? ltr(money(rule.maximumValue, this.locale)) : null;
+    return this.rangeOf(rule.minimumValue, rule.maximumValue);
+  }
+
+  /** A band of the coverage, in the same words as a rule's range. */
+  bandRange(band: Pick<CoverageBand, 'from' | 'to'>): string {
+    return this.rangeOf(band.from, band.to);
+  }
+
+  /**
+   * Phase 3 SI-122: the coverage the matrix would have with the rule being edited as it stands in the form, so a gap or a
+   * shadowed rule the change creates is visible before saving. Information only — the default route is the company's policy
+   * (ADR-084), so nothing is refused.
+   */
+  draftCoverage(): readonly CurrencyCoverage[] {
+    const editing = this.editing();
+    if (!editing) return [];
+    const currency = this.form.currency.trim().toUpperCase() || null;
+    const decimals =
+      this.currencies().find((item) => item.code === currency)?.minorUnits ?? RULE_DECIMALS;
+    const minimum = parseMoney(this.form.minimumValue, decimals, true);
+    const maximum = parseMoney(this.form.maximumValue, decimals);
+    if (minimum.problem || maximum.problem || !/^\d{1,4}$/.test(this.form.priority.trim()))
+      return [];
+    const draft: CoverageRule = {
+      id: editing === 'new' ? 'draft' : editing.id,
+      name: this.form.name.trim() || this.newHeading,
+      priority: Number(this.form.priority.trim()),
+      active: this.form.active,
+      currency,
+      minimumValue: minimum.value,
+      maximumValue: maximum.value,
+      projectId: this.form.projectId || null,
+      category: this.form.category.trim() || null,
+    };
+    const others = this.rules().filter((rule) => editing === 'new' || rule.id !== editing.id);
+    return matrixCoverage([...others, draft]).filter(
+      (item) => !draft.currency || item.currency === draft.currency || item.currency === null,
+    );
+  }
+
+  private rangeOf(minimum: string | null, maximum: string | null): string {
+    const min = minimum ? ltr(money(minimum, this.locale)) : null;
+    const max = maximum ? ltr(money(maximum, this.locale)) : null;
     if (min && max)
       return $localize`:@@matrix.rangeBoth:from ${min}:min: (inclusive) up to ${max}:max: (exclusive)`;
     if (min) return $localize`:@@matrix.rangeMin:from ${min}:min: (inclusive)`;
@@ -200,7 +244,7 @@ export class ApprovalMatrixPage implements OnInit {
           this.editing.set(null);
           this.load();
           this.notice.set(
-            $localize`:@@matrix.stale:Someone else changed this rule. The latest matrix is shown; apply your change again.`,
+            $localize`:@@matrix.staleRules:Someone else changed this rule. The latest rules are shown; apply your change again.`,
           );
         } else this.formError.set(decisionProblemMessage(error));
       },

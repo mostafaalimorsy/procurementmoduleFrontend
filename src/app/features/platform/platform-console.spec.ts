@@ -185,6 +185,8 @@ describe('Company overview', () => {
       },
     });
     const fixture = TestBed.createComponent(CompanyOverview);
+    // Phase 3 SI-159: this panel lives on the company's Access tab.
+    fixture.componentRef.setInput('section', 'access');
     fixture.detectChanges();
     const note = (fixture.nativeElement as HTMLElement).querySelector('.first-admin-mail--failed');
     expect(note?.textContent).toContain('refused the user name or password');
@@ -477,6 +479,8 @@ describe('Company deletion (CF-071)', () => {
     });
     TestBed.inject(CompanyStore).company.set(item);
     const fixture = TestBed.createComponent(CompanyOverview);
+    // Phase 3 SI-159: this panel lives on the company's Data tab.
+    fixture.componentRef.setInput('section', 'data');
     fixture.detectChanges();
     return { fixture, element: fixture.nativeElement as HTMLElement };
   }
@@ -753,6 +757,8 @@ describe('Residency (OD-20)', () => {
     });
     TestBed.inject(CompanyStore).company.set(company);
     const fixture = TestBed.createComponent(CompanyOverview);
+    // Phase 3 SI-159: this panel lives on the company's Data tab.
+    fixture.componentRef.setInput('section', 'data');
     fixture.detectChanges();
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
@@ -807,6 +813,8 @@ describe('Company Admin recovery (CF-079)', () => {
     });
     TestBed.inject(CompanyStore).company.set(company);
     const fixture = TestBed.createComponent(CompanyOverview);
+    // Phase 3 SI-159: this panel lives on the company's Access tab.
+    fixture.componentRef.setInput('section', 'access');
     fixture.detectChanges();
     return { fixture, element: fixture.nativeElement as HTMLElement };
   }

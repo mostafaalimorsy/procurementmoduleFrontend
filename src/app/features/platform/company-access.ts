@@ -4,6 +4,7 @@ import { ConfirmDialog } from '../../shared/ui/confirm-dialog';
 import { CompanyStore } from './company-store';
 import { AccessPolicy, AccessPolicyCapabilities, PlatformApi } from './platform-api.service';
 import { PolicyFields } from './policy-fields';
+import { CompanyOverview } from './company-overview';
 
 interface PolicyImpact {
   readonly removedDomains: readonly string[];
@@ -15,10 +16,12 @@ interface PolicyImpact {
 /** Operator-owned access restrictions for one company. Every configured rule must pass. */
 @Component({
   selector: 'app-platform-company-access',
-  imports: [FormsModule, PolicyFields, ConfirmDialog],
+  imports: [FormsModule, PolicyFields, ConfirmDialog, CompanyOverview],
   styleUrl: './platform.scss',
   template: `
     @if (store.company(); as item) {
+      <!-- Phase 3 SI-159: the company's first Company Admin and an admin recovery sit with the access rules. -->
+      <app-platform-company-overview section="access" />
       <section class="panel" aria-labelledby="policy-title">
         <h2 id="policy-title" i18n="@@company.accessPolicy">Access policy</h2>
         <p class="muted" i18n="@@company.policyHelp">

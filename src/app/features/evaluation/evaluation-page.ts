@@ -20,6 +20,9 @@ import {
 } from '../tendering/tendering.api';
 import {
   EvaluationApi,
+  EvaluationCommercialSummary,
+  EvaluationCommercialSummaryBid,
+  EvaluationGap,
   EvaluationOverview,
   EvaluatorAssignment,
   EvaluatorBidState,
@@ -30,6 +33,7 @@ import {
 } from './evaluation.api';
 import { EvaluationCommercial } from './evaluation-commercial';
 import { EvaluationGaps } from './evaluation-gaps';
+import { money } from './evaluation-format';
 import {
   classificationLabel,
   flagLabel,
@@ -94,10 +98,16 @@ export class EvaluationPage implements OnInit {
   readonly invitationStatusLabel = invitationStatusLabel;
   readonly reasonMax = REASON_MAX;
   readonly size = (bytes: number) => fileSize(bytes, this.locale);
+  readonly money = (amount: string | null | undefined) => money(amount, this.locale);
 
   readonly tenderId = signal('');
   readonly opening = signal<TenderOpening | null>(null);
   readonly overview = signal<EvaluationOverview | null>(null);
+  /**
+   * Phase 3 SI-041: the leveled totals of the per-firm summary — read only when the overview says this reader sees the commercial
+   * evaluation; the server answers 403 to anyone else, which reads as "not shown" (never inferred or rebuilt here).
+   */
+  readonly commercialSummary = signal<EvaluationCommercialSummary | null>(null);
   readonly loading = signal(true);
   readonly error = signal('');
   readonly notice = signal('');
@@ -225,6 +235,7 @@ export class EvaluationPage implements OnInit {
       next: ([opening, overview]) => {
         this.opening.set(opening);
         this.overview.set(overview);
+        this.loadCommercialSummary(opening, overview);
         this.policyChoice ||= overview.policyOptions[0]?.policyId ?? '';
         this.loading.set(false);
         if (afterNotice) this.announce(afterNotice);
@@ -235,6 +246,40 @@ export class EvaluationPage implements OnInit {
       },
     });
   }
+
+  /** Phase 3 SI-041: the commercial column, for commercial readers of an opened, started evaluation only. */
+  private loadCommercialSummary(
+    opening: TenderOpening | null = this.opening(),
+    overview: EvaluationOverview | null = this.overview(),
+  ): void {
+    if (opening?.state !== 'Opened' || !overview?.access.viewCommercial || !overview.evaluation) {
+      this.commercialSummary.set(null);
+      return;
+    }
+    this.api.commercialSummary(this.tenderId()).subscribe({
+      next: (summary) => this.commercialSummary.set(summary),
+      // A 403 (or any failure) leaves the column out: nothing commercial is shown that the server did not send.
+      error: () => this.commercialSummary.set(null),
+    });
+  }
+
+  /** Phase 3 SI-041: one bid's commercial totals, when the summary carries them. */
+  commercialOf(openingBidId: string): EvaluationCommercialSummaryBid | null {
+    return this.commercialSummary()?.bids.find((bid) => bid.openingBidId === openingBidId) ?? null;
+  }
+
+  /** Phase 3 SI-041: what is still needed for one bid (completion gaps whose subject is that bid). */
+  gapsOf(openingBidId: string): readonly EvaluationGap[] {
+    return (this.overview()?.completionGaps ?? []).filter((gap) => gap.subjectId === openingBidId);
+  }
+
+  /** Phase 3 SI-041: whether any bid has a gap of its own (the column shows only then). */
+  readonly anyBidGap = computed(() => {
+    const view = this.overview();
+    if (!view || view.evaluation?.status === 'Completed') return false;
+    const ids = new Set(view.bids.map((bid) => bid.openingBidId));
+    return view.completionGaps.some((gap) => !!gap.subjectId && ids.has(gap.subjectId));
+  });
 
   tabLabel(tab: EvaluationTab): string {
     switch (tab) {
@@ -455,6 +500,7 @@ export class EvaluationPage implements OnInit {
         next: (overview) => {
           this.busy.set(false);
           this.overview.set(overview);
+          this.loadCommercialSummary(this.opening(), overview);
           this.announce(
             $localize`:@@evaluation.started:Evaluation started. The policy version is now fixed for this tender.`,
           );
@@ -488,6 +534,7 @@ export class EvaluationPage implements OnInit {
         this.busy.set(false);
         this.completing.set(false);
         this.overview.set(overview);
+        this.loadCommercialSummary(this.opening(), overview);
         this.announce(
           $localize`:@@evaluation.completedNoSelection:Evaluation completed; no bidder was selected.` +
             ' ' +
@@ -525,6 +572,7 @@ export class EvaluationPage implements OnInit {
         this.busy.set(false);
         this.reopening.set(false);
         this.overview.set(overview);
+        this.loadCommercialSummary(this.opening(), overview);
         this.announce($localize`:@@evaluation.reopened:Evaluation reopened.`);
       },
       error: (error: unknown) => {
@@ -551,6 +599,7 @@ export class EvaluationPage implements OnInit {
         this.busy.set(false);
         this.refreshing.set(false);
         this.overview.set(overview);
+        this.loadCommercialSummary(this.opening(), overview);
         this.announce(
           $localize`:@@evaluation.refreshed:The round's responses are now the evaluation evidence. Rescore and relevel what changed, then complete the evaluation again.`,
         );
@@ -571,6 +620,7 @@ export class EvaluationPage implements OnInit {
       next: (overview) => {
         this.overview.set(overview);
         this.progressStale.set(false);
+        this.loadCommercialSummary(this.opening(), overview);
       },
       // The change itself was saved; only the progress summary could not be refreshed, and the page says so.
       error: () => this.progressStale.set(true),

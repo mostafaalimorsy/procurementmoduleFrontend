@@ -2,15 +2,26 @@
   flex-wrap: wrap;
 }
 
-.aud-list {
-  display: grid;
-  gap: 0.6rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+/* Phase 3 SI-093: the log as a table; identifiers behind Details. */
+.aud-table td {
+  vertical-align: top;
 }
 
-.aud-when,
+.aud-area {
+  inline-size: fit-content;
+  margin-block-start: 0.25rem;
+  white-space: normal;
+}
+
+.aud-more > summary {
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.aud-more[open] > summary {
+  margin-block-end: 0.5rem;
+}
+
 .aud-what {
   display: flex;
   flex-wrap: wrap;
@@ -50,10 +61,6 @@
 .aud-details dd {
   margin: 0;
   overflow-wrap: anywhere;
-}
-
-.aud-when .prj-chip {
-  white-space: normal;
 }
 
 /* CF-122 (ADR-148): the request an entry was recorded in. */

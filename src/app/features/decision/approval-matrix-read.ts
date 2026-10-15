@@ -23,7 +23,7 @@ import {
       <div class="prj-head">
         <div>
           <p class="prj-eyebrow" i18n="@@matrixRead.eyebrow">Award approvals</p>
-          <h1 i18n="@@matrixRead.title">Approval routes</h1>
+          <h1 i18n="@@matrix.titleRules">Approval rules</h1>
           <p class="prj-hint" i18n="@@matrixRead.intro">
             Which approvals an award decision needs. The first active rule that matches, by
             priority, decides; otherwise the default route applies. Each decision keeps the route it

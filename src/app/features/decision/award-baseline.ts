@@ -60,9 +60,20 @@ export class AwardBaselineView {
   }
   private readonly session = inject(SessionService);
   private readonly entitlements = inject(EntitlementsService);
+  /** Phase 3 SI-060: a withdrawn or declined award is no longer in force — it says so instead of "Awarded to". */
+  readonly ended = computed(() => {
+    const state = this.award().state;
+    return state === 'Withdrawn' || state === 'Declined' ? state : null;
+  });
+  /** Whether a closeout applies: an accepted award, or one recorded before answers were tracked (ADR-110). */
+  readonly closeoutApplies = computed(() => {
+    const state = this.award().state;
+    return state === undefined || state === 'Accepted' || state === 'NotRecorded';
+  });
   /** Part 11: the award's performance closeout, where the actual outcome is compared with this baseline. */
   readonly showCloseout = computed(
     () =>
+      this.closeoutApplies() &&
       this.session.hasPermission(PERFORMANCE_PERMISSIONS.view) &&
       PERFORMANCE_FEATURES.every((feature) => this.entitlements.has(feature)),
   );

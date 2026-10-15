@@ -36,16 +36,17 @@
   text-decoration: none;
 }
 
-.brand-mark {
-  display: grid;
+// The official Subtriva assets in the block size the brand mark always had; proportions kept, never mirrored in Arabic.
+.brand-logo,
+.brand-icon {
+  display: block;
   flex: none;
-  place-items: center;
-  inline-size: 2.8rem;
+  inline-size: auto;
   block-size: 2.8rem;
-  background: var(--color-ink);
-  color: var(--color-surface);
-  font-family: var(--font-display);
-  font-size: 1.3rem;
+}
+
+.brand-icon {
+  display: none;
 }
 
 .context-chip {
@@ -188,7 +189,13 @@
   inline-size: 100%;
   max-inline-size: 86rem;
   margin-inline: auto;
-  padding: clamp(2rem, 6vw, 5rem) clamp(1rem, 5vw, 5rem);
+  /* Phase 3 SI-079: content starts close under the navigation (the old 5rem band left ~130 px empty at 1440). */
+  padding: clamp(1rem, 2.5vw, 2rem) clamp(1rem, 5vw, 5rem) clamp(2rem, 5vw, 4rem);
+}
+
+/* Phase 3 SI-079: a page inside the workspace shell does not add a second padding of its own. */
+.shell main .prj-page {
+  padding: 0;
 }
 
 .shell-footer {
@@ -254,9 +261,11 @@
   color: var(--color-on-dark);
 }
 
-.shell--platform .brand-mark {
-  background: var(--color-on-dark);
-  color: var(--color-ink);
+// The console's name beside the Subtriva logo keeps the two-line block the brand text always had, so the desktop navigation stays on the
+// header row (ADR-187).
+.shell--platform .brand-name {
+  max-inline-size: 5em;
+  text-wrap: balance;
 }
 
 .shell--platform .context-chip,
@@ -395,8 +404,13 @@ nav.detail-tabs a.is-active {
 }
 
 @media (max-width: 30rem) {
-  .brand-name {
+  .brand-name,
+  .brand-logo {
     display: none;
+  }
+
+  .brand-icon {
+    display: block;
   }
 }
 
@@ -459,6 +473,28 @@ nav.detail-tabs a.is-active {
 
 .primary-nav .nav-settings-menu a.is-active {
   border-inline-start-color: var(--color-accent);
+}
+
+/* Phase 3 SI-021: the Settings menu in named groups. */
+.nav-settings-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.nav-settings-group + .nav-settings-group {
+  margin-block-start: 0.25rem;
+  padding-block-start: 0.25rem;
+  border-block-start: 1px solid var(--color-border);
+}
+
+.nav-settings-heading {
+  margin: 0;
+  padding: 0.45rem 1rem 0.15rem;
+  color: var(--color-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 @media (max-width: 64rem) {
