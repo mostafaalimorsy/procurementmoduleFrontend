@@ -556,9 +556,9 @@
     <section class="prj-section ev-lines" aria-labelledby="schedule-title">
       <h2 id="schedule-title" i18n="@@evaluation.scheduleTitle">Price schedule by item</h2>
       <p class="prj-hint" i18n="@@evaluation.scheduleHint">
-        Every item is aligned by its code, whatever a bidder wrote. Amounts are exactly quantity ×
-        rate; nothing is rounded. An item a bid never priced (it answered an earlier revision) is
-        missing scope.
+        Every item is aligned by its code, whatever a bidder wrote. Each amount is quantity × rate
+        rounded once to the currency's decimals (halves away from zero); the bidder's rate is kept
+        as entered. An item a bid never priced (it answered an earlier revision) is missing scope.
       </p>
       <div class="ev-grid-wrap" role="region" tabindex="0" aria-labelledby="schedule-title">
         <table class="ev-grid">

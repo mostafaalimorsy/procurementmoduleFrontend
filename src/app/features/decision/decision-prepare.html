@@ -98,10 +98,18 @@
 
       @if (isOverride()) {
         <div class="prj-note tnd-attention-box" role="note">
-          <p i18n="@@decision.overrideNote">
-            This firm is not ranked first by the recommendation. The decision is recorded as an
-            override and its reason is shown to every approver.
-          </p>
+          @if (outrankedOverride()) {
+            <p i18n="@@decision.outrankedNote">
+              This firm ranks first only because a bid ranked above it was withdrawn or excluded
+              after opening. The decision is recorded as an override, its reason is shown to every
+              approver, and an independent approval is added.
+            </p>
+          } @else {
+            <p i18n="@@decision.overrideNote">
+              This firm is not ranked first by the recommendation. The decision is recorded as an
+              override and its reason is shown to every approver.
+            </p>
+          }
           <div class="prj-field">
             <label for="decision-override" i18n="@@decision.overrideReason"
               >Override reason (required)</label

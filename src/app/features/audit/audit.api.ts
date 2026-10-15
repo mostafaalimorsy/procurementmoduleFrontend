@@ -86,6 +86,16 @@ export interface AuditExportResult {
   readonly truncated: boolean;
 }
 
+/** Phase 2 SI-012: the tamper-evident chain over the audit trail. */
+export interface AuditChainStatus {
+  readonly sealedEvents: number;
+  readonly unsealedEvents: number;
+  readonly headSequence: number | null;
+  readonly headSha256: string | null;
+  readonly verified: boolean;
+  readonly firstBrokenSequence: number | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuditApi {
   private readonly http = inject(HttpClient);
@@ -94,6 +104,11 @@ export class AuditApi {
     return this.http.get<Paged<AuditEntry>>('/api/v1/admin/audit', {
       params: params(filter).set('page', String(page)).set('pageSize', '25'),
     });
+  }
+
+  /** Phase 2 SI-012: the audit chain as verified now (the server recomputes it). */
+  chain(): Observable<AuditChainStatus> {
+    return this.http.get<AuditChainStatus>('/api/v1/admin/audit/chain');
   }
 
   facets(): Observable<AuditFacets> {

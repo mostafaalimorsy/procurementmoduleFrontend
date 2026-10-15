@@ -46,6 +46,19 @@ import { PrequalificationEvidence } from './sourcing.api';
             >
           }
         }
+        <!-- Phase 1 SI-042: confirmed past outcomes, labelled and never weighed. -->
+        @if (item.retrospectiveProjects) {
+          <span
+            class="tnd-block"
+            data-testid="prequal-past-outcomes"
+            i18n="@@prequalEvidence.pastOutcomes"
+            >{item.retrospectiveProjects, plural,
+              =1 {1 past outcome}
+              other {{{ item.retrospectiveProjects }} past outcomes}
+            }
+            in this category (not system-evidenced, not weighed)</span
+          >
+        }
       </p>
     } @else if (failed()) {
       <p class="prj-hint" i18n="@@prequalEvidence.unavailable">

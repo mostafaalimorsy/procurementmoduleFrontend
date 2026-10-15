@@ -128,6 +128,32 @@
           @if (item.imported) {
             <p class="prj-hint" i18n="@@directory.importedHint">Added by a directory import.</p>
           }
+          <!-- Phase 1 SI-100 -->
+          <dl class="prj-dl" data-testid="subcontractor-relationship">
+            <div>
+              <dt i18n="@@directoryField.source">Source</dt>
+              <dd>
+                {{ sourceLabel(item.source) }}
+                @if (item.sourceNote) {
+                  — <bdi>{{ item.sourceNote }}</bdi>
+                }
+              </dd>
+            </div>
+            <div>
+              <dt i18n="@@directoryField.serviceRegions">Service regions</dt>
+              <dd>
+                @if (item.serviceRegions?.length) {
+                  <bdi>{{ item.serviceRegions!.join(', ') }}</bdi>
+                } @else {
+                  —
+                }
+              </dd>
+            </div>
+            <div>
+              <dt i18n="@@directoryField.relationshipOwner">Relationship owner</dt>
+              <dd>{{ item.relationshipOwnerName || '—' }}</dd>
+            </div>
+          </dl>
         </section>
 
         <section class="prj-section" aria-labelledby="trades-title">

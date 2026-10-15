@@ -36,6 +36,15 @@ export interface BidderInvitation {
   readonly technicalProposalRequired: boolean;
   /** CF-053: the tender requires a proposed duration. */
   readonly durationRequired: boolean;
+  /** Phase 1 SI-127: the tender requires a mobilization period (days from award). */
+  readonly mobilizationRequired?: boolean;
+  /** Phase 1 SI-105: the pre-bid meeting or site visit, and whether the buyer recorded this firm as attending. */
+  readonly siteVisit?: {
+    readonly at: { readonly utc: string; readonly local: string; readonly offset: string };
+    readonly place: string;
+    readonly mandatory: boolean;
+  } | null;
+  readonly siteVisitAttended?: boolean | null;
   /** CF-055 (ADR-092): what the tender asks bidders to confirm and answer. */
   readonly pricing: TenderPricing | null;
   readonly terms: TenderTerms | null;
@@ -174,6 +183,8 @@ export interface BidContent {
   readonly paymentTerms: string | null;
   readonly durationDays: number | null;
   readonly warrantyMonths: number | null;
+  /** Phase 1 SI-127: "mobilize within N days of award" (optional unless the tender requires it). */
+  readonly mobilizationDays?: number | null;
   readonly exclusions: readonly string[];
   readonly commercialDeviations: readonly string[];
   readonly commercialNotes: string | null;
@@ -309,6 +320,7 @@ export const BID_LIMITS = {
   validityMax: 365,
   durationMin: 1,
   durationMax: 3650,
+  mobilizationMax: 365,
   warrantyMax: 240,
 } as const;
 
@@ -316,8 +328,24 @@ export const BID_LIMITS = {
  * What the bid workspace needs from the server. The invitation portal's own bid (BidderApi) is the default; a negotiation
  * round (Part 10) provides the same operations on the firm's revised response, so the one bid form serves both.
  */
+/** Phase 1 SI-030: rates read back from the schedule workbook — a dry run; nothing is saved until the draft is. */
+export interface BidderRatesImport {
+  readonly sha256: string;
+  readonly rows: number;
+  readonly rates: readonly { readonly key: string | null; readonly rate: string | null }[];
+  readonly issues: readonly {
+    readonly row: number | null;
+    readonly code: string;
+    readonly column: string | null;
+  }[];
+  readonly canApply: boolean;
+}
+
 export interface BidWorkspaceBackend {
   bid(token: string): Observable<Bid>;
+  /** Phase 1 SI-030: the schedule in force as a workbook, and the firm's rates read back from it (invitation portal only). */
+  scheduleWorkbook?(token: string): Observable<Blob>;
+  readScheduleRates?(token: string, file: File): Observable<BidderRatesImport>;
   saveDraft(token: string, draftVersion: string, content: BidContent): Observable<BidDraftSaved>;
   uploadAttachment(
     token: string,
@@ -417,6 +445,26 @@ export class BidderApi {
       `/api/v1/tender-invitations/bid/attachments/${encodeURIComponent(attachmentId)}`,
       { token },
       { responseType: 'blob' },
+    );
+  }
+
+  scheduleWorkbook(token: string): Observable<Blob> {
+    return this.http.post(
+      '/api/v1/tender-invitations/bid/schedule.xlsx',
+      { token },
+      { responseType: 'blob' },
+    );
+  }
+
+  readScheduleRates(token: string, file: File): Observable<BidderRatesImport> {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return this.http.post<BidderRatesImport>(
+      '/api/v1/tender-invitations/bid/schedule/rates',
+      form,
+      {
+        headers: { 'X-Bid-Token': token },
+      },
     );
   }
 

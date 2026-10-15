@@ -321,6 +321,14 @@
                               >Recorded outside the portal</span
                             >
                           }
+                          @if (bid.siteVisitMissed) {
+                            <span
+                              class="prj-chip tnd-block"
+                              data-testid="opened-bid-site-visit-missed"
+                              i18n="@@evaluation.siteVisitMissed"
+                              >Not recorded at the mandatory site visit</span
+                            >
+                          }
                           @if (bid.withdrawal; as withdrawal) {
                             <strong class="tnd-attention tnd-block" i18n="@@evaluation.bidWithdrawn"
                               >Withdrawn by the firm — recorded by
@@ -331,70 +339,22 @@
                               ><bdi>{{ withdrawal.reason }}</bdi> ·
                               <bdi>{{ withdrawal.evidenceReference }}</bdi></small
                             >
+                          } @else if (bid.excluded; as excluded) {
+                            <strong class="tnd-attention tnd-block" i18n="@@evaluation.bidExcluded"
+                              >Excluded after opening — requested by
+                              <bdi>{{ excluded.requestedByName }}</bdi
+                              >, approved by <bdi>{{ excluded.approvedByName }}</bdi> on
+                              {{ excluded.excludedAtUtc | businessDate: 'instant' }}</strong
+                            >
                           } @else if (canRecordWithdrawal()) {
-                            @if (withdrawingBid() === bid.id) {
-                              <div class="prj-form">
-                                <div class="prj-field">
-                                  <label
-                                    [for]="'wd-reason-' + bid.id"
-                                    i18n="@@evaluation.withdrawalReason"
-                                    >Reason the firm gave</label
-                                  >
-                                  <textarea
-                                    [id]="'wd-reason-' + bid.id"
-                                    name="withdrawalReason"
-                                    rows="2"
-                                    maxlength="1000"
-                                    [(ngModel)]="withdrawalReason"
-                                  ></textarea>
-                                </div>
-                                <div class="prj-field">
-                                  <label
-                                    [for]="'wd-ref-' + bid.id"
-                                    i18n="@@evaluation.withdrawalReference"
-                                    >Evidence reference (for example the firm's letter)</label
-                                  >
-                                  <input
-                                    [id]="'wd-ref-' + bid.id"
-                                    name="withdrawalReference"
-                                    maxlength="200"
-                                    [(ngModel)]="withdrawalReference"
-                                  />
-                                </div>
-                                <div class="prj-actions">
-                                  <button
-                                    class="prj-btn prj-btn--danger"
-                                    type="button"
-                                    [disabled]="
-                                      busy() ||
-                                      withdrawalReason.trim().length < 3 ||
-                                      !withdrawalReference.trim()
-                                    "
-                                    (click)="recordWithdrawal(bid.id)"
-                                    i18n="@@evaluation.recordWithdrawal"
-                                  >
-                                    Record withdrawal
-                                  </button>
-                                  <button
-                                    class="prj-btn prj-btn--ghost"
-                                    type="button"
-                                    (click)="withdrawingBid.set(null)"
-                                    i18n="@@common.cancel"
-                                  >
-                                    Cancel
-                                  </button>
-                                </div>
-                              </div>
-                            } @else {
-                              <button
-                                class="prj-btn prj-btn--ghost"
-                                type="button"
-                                (click)="askWithdrawal(bid.id)"
-                                i18n="@@evaluation.firmWithdrew"
-                              >
-                                The firm withdrew…
-                              </button>
-                            }
+                            <!-- Phase 1 D02 (ADR-183): requested here, approved by the company's configured approver. -->
+                            <a
+                              class="prj-btn prj-btn--ghost"
+                              [routerLink]="['/tenders', tenderId(), 'post-opening']"
+                              [queryParams]="{ act: 'BidWithdrawal', bid: bid.id }"
+                              i18n="@@evaluation.requestWithdrawalOrExclusion"
+                              >Request withdrawal or exclusion…</a
+                            >
                           }
                         </td>
                         <td>
@@ -531,8 +491,29 @@
                 <p class="prj-hint" i18n="@@evaluation.panelRules">
                   Each bid needs {{ panel.minimum }} current submitted scorecard(s). Evaluator
                   totals more than {{ panel.divergenceThresholdPoints }} points apart are flagged as
-                  divergent; they are never averaged.
+                  divergent. Each total is shown on its own here; the recommendation ranks on their
+                  mean.
                 </p>
+                <!-- Phase 1 SI-036 (ADR-184, P1-D05 A): every scorecard counts; these are labelled. -->
+                @if (view.labelledScorecards?.length) {
+                  <ul class="prj-note" data-testid="labelled-scorecards">
+                    @for (item of view.labelledScorecards; track $index) {
+                      <li>
+                        <bdi dir="ltr" class="tnd-code">{{ item.subcontractorCode }}</bdi> ·
+                        <bdi>{{ item.evaluatorName }}</bdi
+                        >:
+                        @if (item.offPanel) {
+                          <span class="prj-chip" i18n="@@evaluation.offPanel"
+                            >not on the panel</span
+                          >
+                        }
+                        @if (item.priceAware) {
+                          <span class="prj-chip" i18n="@@evaluation.priceAware">sees prices</span>
+                        }
+                      </li>
+                    }
+                  </ul>
+                }
                 @if (panel.moderationRequired) {
                   <p class="prj-hint" i18n="@@evaluation.panelModeration">
                     A divergent bid needs a moderation note before the evaluation is completed.

@@ -52,6 +52,12 @@ export class AwardBaselineView {
   readonly justificationLabel = competitionJustificationLabel;
   readonly basisLabel = validityBasisLabel;
   readonly channelLabel = validityChannelLabel;
+  /** Phase 1 SI-127: a commitment frozen as whole days ("14") reads as a period; any other text is shown as it was recorded. */
+  mobilizationText(commitment: string): string {
+    return /^\d+$/.test(commitment)
+      ? $localize`:@@award.mobilizationWithin:Within ${commitment}:days: days of award`
+      : commitment;
+  }
   private readonly session = inject(SessionService);
   private readonly entitlements = inject(EntitlementsService);
   /** Part 11: the award's performance closeout, where the actual outcome is compared with this baseline. */

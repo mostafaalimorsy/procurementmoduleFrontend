@@ -13,6 +13,7 @@ export const DIRECTORY_PERMISSIONS = {
   changeStatus: 'Subcontractors.ChangeStatus',
   block: 'Subcontractors.Block',
   import: 'Subcontractors.Import',
+  export: 'Subcontractors.Export',
   manageTrades: 'Trades.Manage',
 } as const;
 
@@ -69,6 +70,27 @@ export interface Contact {
   readonly isPrimary: boolean;
 }
 
+/** Phase 1 SI-100 (BSD §6.2): where the company's record of the firm came from. There is no external-connector source. */
+export type SubcontractorSource = 'Internal' | 'Manual' | 'Import';
+export const SUBCONTRACTOR_SOURCES: readonly SubcontractorSource[] = [
+  'Internal',
+  'Manual',
+  'Import',
+];
+
+export function sourceLabel(source: SubcontractorSource | string | null | undefined): string {
+  switch (source) {
+    case 'Internal':
+      return $localize`:@@directorySource.internal:Company vendor list`;
+    case 'Manual':
+      return $localize`:@@directorySource.manual:Added manually`;
+    case 'Import':
+      return $localize`:@@directorySource.import:Directory import`;
+    default:
+      return $localize`:@@directorySource.none:Not recorded`;
+  }
+}
+
 export interface SubcontractorSummary {
   readonly id: string;
   readonly code: string;
@@ -83,12 +105,17 @@ export interface SubcontractorSummary {
   readonly version: string;
   /** CF-014 (ADR-130): finalized closeouts across categories, for intelligence readers (absent otherwise). */
   readonly history?: SubcontractorHistory | null;
+  /** Phase 1 SI-100: the regions the firm serves and who owns the relationship. */
+  readonly serviceRegions?: readonly string[] | null;
+  readonly relationshipOwnerName?: string | null;
 }
 
 export interface SubcontractorHistory {
   readonly closeouts: number;
   readonly categories: number;
   readonly latestClosedAtUtc: string | null;
+  /** Phase 1 SI-042: confirmed past outcomes — not system-evidenced, never weighed. */
+  readonly pastOutcomes?: number;
 }
 
 export interface SubcontractorDetail {
@@ -112,6 +139,12 @@ export interface SubcontractorDetail {
   readonly createdBy: string;
   readonly updatedBy: string;
   readonly version: string;
+  /** Phase 1 SI-100 (ADR-184): where the record came from, the regions served and the relationship owner. */
+  readonly source?: SubcontractorSource | null;
+  readonly sourceNote?: string | null;
+  readonly serviceRegions?: readonly string[] | null;
+  readonly relationshipOwnerAccountId?: string | null;
+  readonly relationshipOwnerName?: string | null;
 }
 
 export interface ContactWrite {
@@ -133,6 +166,12 @@ export interface SubcontractorWrite {
   readonly notes: string | null;
   readonly tradeIds: readonly string[];
   readonly contacts: readonly ContactWrite[];
+  /** Phase 1 SI-100: sent together; an empty owner id clears the owner. */
+  readonly relationshipSet?: boolean;
+  readonly source?: SubcontractorSource | null;
+  readonly sourceNote?: string | null;
+  readonly serviceRegions?: readonly string[];
+  readonly relationshipOwnerAccountId?: string | null;
 }
 
 export interface DirectoryListOptions {
@@ -143,6 +182,10 @@ export interface DirectoryListOptions {
   readonly pageSize?: number;
   readonly sortBy?: 'Code' | 'LegalName' | 'UpdatedAt';
   readonly desc?: boolean;
+  /** Phase 1 SI-100: firms serving this region (case-insensitive), from this source, or owned by this member. */
+  readonly region?: string;
+  readonly source?: SubcontractorSource | null;
+  readonly relationshipOwnerId?: string | null;
 }
 
 /**
@@ -244,6 +287,10 @@ export class DirectoryApi {
     if (options.pageSize) params = params.set('pageSize', options.pageSize);
     if (options.sortBy) params = params.set('sortBy', options.sortBy);
     if (options.desc !== undefined) params = params.set('desc', options.desc);
+    if (options.region?.trim()) params = params.set('region', options.region.trim());
+    if (options.source) params = params.set('source', options.source);
+    if (options.relationshipOwnerId)
+      params = params.set('relationshipOwnerId', options.relationshipOwnerId);
     return this.http.get<Paged<SubcontractorSummary>>('/api/v1/subcontractors', { params });
   }
 

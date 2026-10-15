@@ -111,12 +111,13 @@ function scaled(value: string, scale: number): bigint | null {
   return BigInt(whole) * 10n ** BigInt(scale) + BigInt(trimmed.padEnd(scale, '0') || '0');
 }
 
-export type ExtensionProblem = 'inexact' | 'range';
+export type ExtensionProblem = 'range';
 
 /**
- * CF-004 (ADR-091): quantity × rate exactly, as the server computes it — never rounded. The amount must fall on the currency's minor
- * units (otherwise `inexact`: the bidder adjusts the rate) and stay below the money maximum (`range`). Inputs are canonical decimals
- * with at most three (quantity) and six (rate) decimals.
+ * CF-004 (ADR-091) and ADR-179 (Phase 1 D01): quantity × rate as the server computes it — the exact product, rounded once to the currency's
+ * minor units, half away from zero (a spreadsheet's ROUND(quantity × rate, decimals)); the bidder's quantity and rate are kept as typed. The
+ * amount stays below the money maximum (`range`). Inputs are canonical decimals with at most three (quantity) and six (rate) decimals; anything
+ * else is not priced yet (the field shows its own error).
  */
 export function extension(
   quantity: string,
@@ -125,17 +126,16 @@ export function extension(
 ): { readonly amount: string | null; readonly problem: ExtensionProblem | null } {
   const q = scaled(quantity, 3);
   const r = scaled(rate, 6);
-  if (q === null || r === null) return { amount: null, problem: 'inexact' };
-  const product = q * r; // scaled by 10^9
-  const unit = 10n ** 9n;
-  if (product >= 10n ** BigInt(MONEY_MAX_INTEGER_DIGITS) * unit)
+  if (q === null || r === null) return { amount: null, problem: null };
+  const product = q * r; // scaled by 10^9, never negative
+  const places = Math.max(decimals, 0);
+  const step = 10n ** BigInt(9 - places);
+  const minor = (product + step / 2n) / step; // half away from zero for a non-negative product
+  if (minor >= 10n ** BigInt(MONEY_MAX_INTEGER_DIGITS + places))
     return { amount: null, problem: 'range' };
-  const step = 10n ** BigInt(9 - Math.max(decimals, 0));
-  if (product % step !== 0n) return { amount: null, problem: 'inexact' };
-  const minor = product / step;
-  if (decimals <= 0) return { amount: minor.toString(), problem: null };
-  const text = minor.toString().padStart(decimals + 1, '0');
-  return { amount: `${text.slice(0, -decimals)}.${text.slice(-decimals)}`, problem: null };
+  if (places === 0) return { amount: minor.toString(), problem: null };
+  const text = minor.toString().padStart(places + 1, '0');
+  return { amount: `${text.slice(0, -places)}.${text.slice(-places)}`, problem: null };
 }
 
 /** An exact decimal for display: trailing zeros beyond `keep` decimals dropped ("85.600000" → "85.60" with keep 2), never rounded. */

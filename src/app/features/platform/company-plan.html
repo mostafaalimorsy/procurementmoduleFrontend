@@ -163,9 +163,11 @@
           <li i18n="@@plan.featureAdded">Adds {{ featureName(feature) }}.</li>
         }
         @for (feature of plan.removedFeatures; track feature) {
-          <li class="warning" i18n="@@plan.featureRemoved">
+          <!-- Phase 1 SI-073: removed means hidden — export first. -->
+          <li class="warning" i18n="@@plan.featureRemovedHidden">
             Removes {{ featureName(feature) }}: its screens and actions become unavailable to this
-            company. Its records are kept.
+            company. Its records are kept but cannot be opened until the feature is restored —
+            export the company's data first.
           </li>
         }
       </ul>

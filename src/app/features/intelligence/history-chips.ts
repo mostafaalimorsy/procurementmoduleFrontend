@@ -36,6 +36,15 @@ import { strengthLabel } from './intelligence-labels';
           >
         }
       }
+      @if (evidence().pastOutcomes) {
+        <span class="tnd-block" data-testid="past-outcomes-chip" i18n="@@historyChip.pastOutcomes"
+          >{evidence().pastOutcomes, plural,
+            =1 {1 past outcome}
+            other {{{ evidence().pastOutcomes }} past outcomes}
+          }
+          (not system-evidenced)</span
+        >
+      }
     </span>
   `,
 })
@@ -66,6 +75,15 @@ export class DiscoveryHistoryChip {
             · latest <bdi>{{ latest | businessDate: 'instant' }}</bdi></span
           >
         }
+      }
+      @if (history().pastOutcomes) {
+        <span class="tnd-block" data-testid="past-outcomes-chip" i18n="@@historyChip.pastOutcomes"
+          >{history().pastOutcomes, plural,
+            =1 {1 past outcome}
+            other {{{ history().pastOutcomes }} past outcomes}
+          }
+          (not system-evidenced)</span
+        >
       }
     </span>
   `,

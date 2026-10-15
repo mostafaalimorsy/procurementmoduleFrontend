@@ -1,6 +1,7 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, from, shareReplay, switchMap } from 'rxjs';
+import { Observable, catchError, from, shareReplay, switchMap, throwError } from 'rxjs';
+import { COMPANY_EXPORT_URL } from '../identity/tenant-identity.api';
 
 export const COMPANY_PROFILE_PERMISSION = 'CompanyProfile.Manage';
 export const LOGO_ACCEPT = '.png,.jpg,.jpeg,image/png,image/jpeg';
@@ -73,6 +74,52 @@ export class CompanyApi {
     return this.http.post<CompanyProfile>('/api/v1/company/profile/logo/remove', { version });
   }
 
+  /**
+   * Phase 2 SI-092: the company's complete export, confirmed with a fresh code from the member's authenticator app. Resolves to the ZIP and
+   * the file name the server chose; a refusal arrives as the usual problem (its JSON read back out of the blob body).
+   */
+  exportCompany(code: string): Observable<{ readonly blob: Blob; readonly fileName: string }> {
+    return this.http
+      .post(COMPANY_EXPORT_URL, { code }, { observe: 'response', responseType: 'blob' })
+      .pipe(
+        switchMap((response) =>
+          from(
+            Promise.resolve({
+              blob: response.body ?? new Blob(),
+              fileName:
+                /filename="?([^";]+)"?/.exec(
+                  response.headers.get('Content-Disposition') ?? '',
+                )?.[1] ?? 'company-export.zip',
+            }),
+          ),
+        ),
+        catchError((error: unknown) =>
+          error instanceof HttpErrorResponse && error.error instanceof Blob
+            ? from(error.error.text()).pipe(
+                switchMap((body) => {
+                  let parsed: unknown = null;
+                  try {
+                    parsed = JSON.parse(body);
+                  } catch {
+                    parsed = null;
+                  }
+                  return throwError(
+                    () =>
+                      new HttpErrorResponse({
+                        error: parsed,
+                        headers: error.headers,
+                        status: error.status,
+                        statusText: error.statusText,
+                        url: error.url ?? undefined,
+                      }),
+                  );
+                }),
+              )
+            : throwError(() => error),
+        ),
+      );
+  }
+
   /** The logo as a data URL (the page's image policy allows same-origin and data images only). */
   logo(): Observable<string> {
     return this.http
@@ -128,6 +175,20 @@ export interface ProcurementGovernance {
   readonly evaluationTargetDays?: number | null;
   readonly approvalTargetDays?: number | null;
   readonly closeoutTargetDays?: number | null;
+  /** Phase 1 D02 (ADR-183): the approver role of each post-opening act (null: not set — it cannot be requested) and the roles that may be named. */
+  readonly postOpeningWithdrawalApproverRole?: string | null;
+  readonly postOpeningExclusionApproverRole?: string | null;
+  readonly postOpeningCancellationApproverRole?: string | null;
+  readonly retenderClosureApproverRole?: string | null;
+  readonly postOpeningApproverRoleOptions?: readonly string[] | null;
+  /** Phase 1 SI-017: who receives the weekly privileged-events digest. */
+  readonly privilegedDigestRecipientId?: string | null;
+  /** Phase 1 SI-025 / SI-118 (ADR-184, P1-D16 B): optional publication gates (off by default). */
+  readonly requireCompetitionJustificationAtPublication?: boolean;
+  readonly requireEstimateBeforePublication?: boolean;
+  /** Phase 1 SI-124: who approves an emergency direct award and within how many days it is ratified (null: direct awards off). */
+  readonly directAwardApproverRole?: string | null;
+  readonly directAwardRatificationDays?: number | null;
   readonly isDefault: boolean;
   readonly canManage: boolean;
   readonly updatedAtUtc: string | null;
@@ -158,6 +219,21 @@ export interface ProcurementGovernanceUpdate {
   readonly evaluationTargetDays: number;
   readonly approvalTargetDays: number;
   readonly closeoutTargetDays: number;
+  /** Phase 1 D02: "" removes the approver role (the act then cannot be requested). */
+  readonly postOpeningWithdrawalApproverRole: string;
+  readonly postOpeningExclusionApproverRole: string;
+  readonly postOpeningCancellationApproverRole: string;
+  readonly retenderClosureApproverRole: string;
+  /** Phase 1 SI-017 (ADR-184): a change that loosens a control is saved only when confirmed with a reason. */
+  readonly weakeningConfirmed: boolean;
+  readonly weakeningReason: string | null;
+  /** Phase 1 SI-017: the digest recipient's account id; the empty id removes it. */
+  readonly privilegedDigestRecipientId: string;
+  readonly requireCompetitionJustificationAtPublication: boolean;
+  readonly requireEstimateBeforePublication: boolean;
+  /** Phase 1 SI-124: "" turns direct awards off; otherwise a role with its ratification days. */
+  readonly directAwardApproverRole: string;
+  readonly directAwardRatificationDays: number | null;
   readonly version: string;
 }
 

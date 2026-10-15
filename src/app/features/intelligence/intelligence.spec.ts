@@ -843,6 +843,14 @@ describe('Audit log page: erased people (CF-095)', () => {
     const page = TestBed.createComponent(AuditLogPage);
     page.detectChanges();
     http.expectOne('/api/v1/admin/audit/facets').flush({ actions: [], actors: [] });
+    http.expectOne('/api/v1/admin/audit/chain').flush({
+      sealedEvents: 41,
+      unsealedEvents: 2,
+      headSequence: 41,
+      headSha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      verified: true,
+      firstBrokenSequence: null,
+    });
     const entry = {
       occurredAtUtc: '2026-09-29T09:00:00Z',
       actorKind: 'User',
@@ -895,6 +903,19 @@ describe('Audit log page', () => {
       actions: ['award.issued'],
       actors: [{ accountId: 'u1', displayName: 'Nadia Khalil' }],
     });
+    http.expectOne('/api/v1/admin/audit/chain').flush({
+      sealedEvents: 41,
+      unsealedEvents: 2,
+      headSequence: 41,
+      headSha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      verified: true,
+      firstBrokenSequence: null,
+    });
+    page.detectChanges();
+    // Phase 2 SI-012: the chain's state, as the server verified it.
+    expect(
+      (page.nativeElement as HTMLElement).querySelector('[data-testid="audit-chain"]')?.textContent,
+    ).toContain('Tamper check passed');
     const first = http.expectOne((candidate) => candidate.url === '/api/v1/admin/audit');
     expect(first.request.params.get('page')).toBe('1');
     first.flush({
@@ -955,6 +976,14 @@ describe('Audit log page: request context (CF-122)', () => {
     const page = TestBed.createComponent(AuditLogPage);
     page.detectChanges();
     http.expectOne('/api/v1/admin/audit/facets').flush({ actions: [], actors: [] });
+    http.expectOne('/api/v1/admin/audit/chain').flush({
+      sealedEvents: 41,
+      unsealedEvents: 2,
+      headSequence: 41,
+      headSha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      verified: true,
+      firstBrokenSequence: null,
+    });
     const entry = {
       id: 'e1',
       occurredAtUtc: '2026-10-02T09:00:00Z',
@@ -1002,6 +1031,14 @@ describe('Audit log page: request context (CF-122)', () => {
     const page = TestBed.createComponent(AuditLogPage);
     page.detectChanges();
     http.expectOne('/api/v1/admin/audit/facets').flush({ actions: [], actors: [] });
+    http.expectOne('/api/v1/admin/audit/chain').flush({
+      sealedEvents: 41,
+      unsealedEvents: 2,
+      headSequence: 41,
+      headSha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      verified: true,
+      firstBrokenSequence: null,
+    });
     const base = {
       occurredAtUtc: '2026-10-02T09:00:00Z',
       actorAccountId: null,

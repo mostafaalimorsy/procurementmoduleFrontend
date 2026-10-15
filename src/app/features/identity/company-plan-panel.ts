@@ -37,6 +37,30 @@ import { CompanyPlan, featureLabel } from './tenant-identity.api';
           </div>
         </div>
 
+        <!-- Phase 1 SI-137: the commercial footing, as the operator recorded it (read-only). -->
+        @if (companyPlan.commercial; as footing) {
+          <p class="plan-features" data-testid="plan-commercial">
+            <span class="muted" i18n="@@plan.footing">Commercial footing:</span>
+            <strong>{{ modeLabel(footing.mode) }}</strong>
+            @if (footing.endsOn) {
+              <ng-container i18n="@@plan.footingUntil">
+                from <bdi dir="ltr">{{ footing.startsOn }}</bdi> until
+                <bdi dir="ltr">{{ footing.endsOn }}</bdi></ng-container
+              >
+            } @else {
+              <ng-container i18n="@@plan.footingFrom">
+                from <bdi dir="ltr">{{ footing.startsOn }}</bdi></ng-container
+              >
+            }
+            @if (footing.reference) {
+              ·
+              <ng-container i18n="@@plan.footingReference"
+                >reference <bdi>{{ footing.reference }}</bdi></ng-container
+              >
+            }
+          </p>
+        }
+
         <div class="plan-quotas">
           @for (quota of companyPlan.quotas; track quota.key) {
             <app-quota-usage [quota]="quota" />
@@ -132,6 +156,20 @@ import { CompanyPlan, featureLabel } from './tenant-identity.api';
   `,
 })
 export class CompanyPlanPanel {
+  /** Phase 1 SI-137: the commercial mode in words. */
+  modeLabel(mode: string): string {
+    switch (mode) {
+      case 'Pilot':
+        return $localize`:@@plan.modePilot:Pilot`;
+      case 'PaidPilot':
+        return $localize`:@@plan.modePaidPilot:Paid pilot`;
+      case 'Subscribed':
+        return $localize`:@@plan.modeSubscribed:Subscription`;
+      default:
+        return mode;
+    }
+  }
+
   readonly plan = input<CompanyPlan | null>(null);
   protected readonly featureLabel = featureLabel;
 }

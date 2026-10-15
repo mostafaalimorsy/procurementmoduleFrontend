@@ -1,6 +1,7 @@
 import { VerificationDetails } from '../../shared/ui/verification-details';
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { BusinessDatePipe } from '../../core/localization/business-format';
 import { attemptStatusLabel, deliveryKindLabel } from '../../core/localization/labels';
 import { requestKey } from '../../shared/util/request-key';
@@ -17,8 +18,7 @@ import {
 } from './decision.api';
 import { awardStateLabel, declineReasonLabel, withdrawalReasonLabel } from './decision-labels';
 
-type Form =
-  'accept' | 'decline' | 'withdraw' | 'reject' | 'retender' | 'notices' | 'reserves' | null;
+type Form = 'accept' | 'decline' | 'withdraw' | 'reject' | 'notices' | 'reserves' | null;
 
 /**
  * CF-046 (ADR-110, OD-18): what follows an issued award — the subcontractor's answer recorded with its evidence, a withdrawal that someone else
@@ -27,7 +27,7 @@ type Form =
  */
 @Component({
   selector: 'app-award-outcome',
-  imports: [VerificationDetails, FormsModule, BusinessDatePipe],
+  imports: [VerificationDetails, FormsModule, BusinessDatePipe, RouterLink],
   templateUrl: './award-outcome.html',
 })
 export class AwardOutcome {
@@ -71,8 +71,7 @@ export class AwardOutcome {
   submit(): void {
     if (this.busy()) return;
     const form = this.form();
-    const reasonNeeded =
-      form === 'decline' || form === 'withdraw' || form === 'reject' || form === 'retender';
+    const reasonNeeded = form === 'decline' || form === 'withdraw' || form === 'reject';
     if (reasonNeeded && this.text.trim().length < REASON_MIN) {
       this.error.set(
         $localize`:@@control.reasonTooShort:Explain the reason (at least ${REASON_MIN}:min: characters).`,
@@ -170,18 +169,6 @@ export class AwardOutcome {
           next: done(
             $localize`:@@awardOutcome.reservesReleased:The reserve bids are being told they were not selected.`,
           ),
-          error: failed,
-        });
-        break;
-      case 'retender':
-        this.api.closeForRetender(tenderId, this.text.trim()).subscribe({
-          next: () => {
-            this.busy.set(false);
-            this.form.set(null);
-            this.reload.emit(
-              $localize`:@@awardOutcome.closed:The tender is closed. Its work package can be tendered again.`,
-            );
-          },
           error: failed,
         });
         break;

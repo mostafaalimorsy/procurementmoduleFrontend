@@ -401,7 +401,8 @@ describe('tender builder', () => {
     manager.page.changed.subscribe((value) => (changed = value));
     manager.page.confirm();
     const publish = manager.http.expectOne('/api/v1/tenders/t1/publish');
-    expect(publish.request.body).toEqual({ version: 'v1' });
+    // Phase 1 SI-025: no limited-competition justification unless the company gate asks for one.
+    expect(publish.request.body).toEqual({ version: 'v1', limitedCompetitionReason: null });
     publish.flush(published());
     expect(changed).not.toBeNull();
     manager.http.verify();
@@ -766,18 +767,34 @@ describe('tender control center', () => {
     expect(viewer.querySelector('[data-testid="not-in-plan"]')).toBeNull();
   });
 
-  it('offers to close an opened tender without an award only on a plan without award (CF-060)', () => {
+  it('offers to close an opened tender without an award only on a plan without award (CF-060), as a request for approval (Phase 1 D02)', () => {
     const opened = published({
       closure: { bidsOpenedAtUtc: '2026-10-01T09:00:00Z' } as unknown as TenderDetail['closure'],
     });
+    const links = (element: HTMLElement) =>
+      Array.from(element.querySelectorAll('a')).map((a) => [
+        (a.textContent ?? '').trim(),
+        a.getAttribute('href') ?? '',
+      ]);
     const { element } = renderControl(MANAGER, opened, [...FEATURES, 'evaluation']);
-    expect(buttons(element)).toContain('Close without award');
+    expect(links(element)).toContainEqual([
+      'Request closure without award',
+      '/tenders/t1/post-opening?act=RetenderClosure',
+    ]);
+    // After opening, cancelling is requested for approval too — never done from here.
+    expect(links(element)).toContainEqual([
+      'Request cancellation (needs approval)',
+      '/tenders/t1/post-opening?act=TenderCancellation',
+    ]);
+    expect(buttons(element)).not.toContain('Cancel tender');
     TestBed.resetTestingModule();
     const { element: full } = renderControl(MANAGER, opened, [...FEATURES, 'evaluation', 'award']);
-    expect(buttons(full)).not.toContain('Close without award');
+    expect(links(full).map(([label]) => label)).not.toContain('Request closure without award');
     TestBed.resetTestingModule();
+    // Before opening a cancellation stays direct, and there is nothing to close without award.
     const { element: sealed } = renderControl(MANAGER, published(), [...FEATURES, 'evaluation']);
     expect(buttons(sealed)).not.toContain('Close without award');
+    expect(buttons(sealed)).toContain('Cancel tender');
   });
 
   it('shows who was invited, what the mail server did, and what needs attention, without claiming delivery', () => {
@@ -1128,6 +1145,45 @@ describe('work package tender panel', () => {
     expect(typeof create.request.body.timeZoneId).toBe('string');
     create.flush(tender());
     expect(navigate).toHaveBeenCalledWith(['/tenders', 't1']);
+    http.verify();
+  });
+
+  it('offers RFQ and RFP again once the package tender was closed for re-tender (ADR-110)', () => {
+    const http = configure(OFFICER);
+    const fixture = TestBed.createComponent(WorkPackageTender);
+    fixture.componentRef.setInput('workPackageId', 'wp1');
+    fixture.detectChanges();
+    http
+      .expectOne((request) => request.url === '/api/v1/sourcing')
+      .flush(paged([{ status: 'ShortlistApproved' }]));
+    http
+      .expectOne((request) => request.url === '/api/v1/tenders')
+      .flush(paged([tender({ status: 'ClosedWithoutActiveAward' })]));
+    fixture.detectChanges();
+    expect(buttons(fixture.nativeElement as HTMLElement)).toEqual(['Create RFQ', 'Create RFP']);
+    http.verify();
+  });
+
+  it('shows the re-tender draft, not the closed tender, once one exists (ADR-110)', () => {
+    const http = configure(OFFICER);
+    const fixture = TestBed.createComponent(WorkPackageTender);
+    fixture.componentRef.setInput('workPackageId', 'wp1');
+    fixture.detectChanges();
+    http
+      .expectOne((request) => request.url === '/api/v1/sourcing')
+      .flush(paged([{ status: 'ShortlistApproved' }]));
+    http
+      .expectOne((request) => request.url === '/api/v1/tenders')
+      .flush(
+        paged([
+          tender({ id: 't2', reference: 'TND-2026-0002' }),
+          tender({ status: 'ClosedWithoutActiveAward' }),
+        ]),
+      );
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(text(element)).toContain('TND-2026-0002');
+    expect(buttons(element)).not.toContain('Create RFQ');
     http.verify();
   });
 

@@ -37,6 +37,24 @@
           i18n="@@directory.import"
           >Import</a
         >
+        <!-- Phase 1 SI-023: the AVL beyond identity, and the directory as a workbook. -->
+        <a
+          class="prj-btn prj-btn--ghost"
+          routerLink="/subcontractors/standing-import"
+          i18n="@@directory.standingImport"
+          >Import status and vendors</a
+        >
+      }
+      <!-- Phase 2 H-01 (ADR-185): the workbook carries every firm's contact person — procurement leadership only. -->
+      @if (can(permissions.export)) {
+        <a
+          class="prj-btn prj-btn--ghost"
+          href="/api/v1/subcontractors/export.xlsx"
+          download
+          data-testid="directory-export"
+          i18n="@@directory.export"
+          >Export to Excel</a
+        >
       }
       @if (can(permissions.create)) {
         <a class="prj-btn" routerLink="/subcontractors/new" i18n="@@directory.new"
@@ -90,6 +108,31 @@
               &ngsp;<ng-container i18n="@@directory.retiredSuffix">(retired)</ng-container>
             }
           </option>
+        }
+      </select>
+    </div>
+    <!-- Phase 1 SI-100: firms serving a region, and the record's source. -->
+    <div class="prj-field">
+      <label for="directory-region" i18n="@@directoryField.region">Region served</label>
+      <input
+        id="directory-region"
+        name="region"
+        maxlength="100"
+        [(ngModel)]="region"
+        (ngModelChange)="searchChanged()"
+      />
+    </div>
+    <div class="prj-field">
+      <label for="directory-source" i18n="@@directoryField.source">Source</label>
+      <select
+        id="directory-source"
+        name="source"
+        [(ngModel)]="source"
+        (ngModelChange)="applyFilters()"
+      >
+        <option value="" i18n="@@directory.allSources">All sources</option>
+        @for (option of sources; track option) {
+          <option [value]="option">{{ sourceLabel(option) }}</option>
         }
       </select>
     </div>

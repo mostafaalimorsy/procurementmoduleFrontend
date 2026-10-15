@@ -52,6 +52,7 @@ export interface BidderNegotiation {
   readonly bidValidityDays: number | null;
   readonly technicalProposalRequired: boolean;
   readonly durationRequired: boolean;
+  readonly mobilizationRequired?: boolean;
   readonly pricing: TenderPricing | null;
   readonly terms: TenderTerms | null;
   readonly schedule?: readonly ScheduleItem[] | null;
@@ -260,6 +261,7 @@ export function negotiationAsInvitation(view: BidderNegotiation): BidderInvitati
     bidValidityDays: view.bidValidityDays,
     technicalProposalRequired: view.technicalProposalRequired,
     durationRequired: view.durationRequired,
+    mobilizationRequired: view.mobilizationRequired ?? false,
     pricing: view.pricing,
     terms: view.terms,
     schedule: view.schedule ?? null,

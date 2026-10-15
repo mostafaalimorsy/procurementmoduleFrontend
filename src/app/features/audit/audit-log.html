@@ -7,6 +7,32 @@
         Every recorded action in your company: who, when and on which record. Details show
         identifiers, codes, counts and states only — never amounts, notes, contact data or secrets.
       </p>
+      <!-- Phase 2 SI-012: the tamper-evident chain, as the server verified it now. -->
+      @if (chain(); as status) {
+        @if (status.verified) {
+          <p class="prj-hint" data-testid="audit-chain" role="status">
+            <span i18n="@@audit.chainVerified"
+              >Tamper check passed: {{ status.sealedEvents }} entries sealed in the chain,
+              {{ status.unsealedEvents }} waiting to be sealed.</span
+            >
+            @if (status.headSequence !== null) {
+              <span i18n="@@audit.chainHead"
+                >Chain value at entry {{ status.headSequence }}:
+                <code dir="ltr">{{ status.headSha256?.slice(0, 16) }}</code
+                >…</span
+              >
+            }
+          </p>
+        } @else {
+          <p class="prj-error" data-testid="audit-chain" role="alert">
+            <span i18n="@@audit.chainBroken"
+              >Tamper check failed: the audit trail no longer matches its chain from entry
+              {{ status.firstBrokenSequence }}. Tell the platform team and your company's sponsor at
+              once.</span
+            >
+          </p>
+        }
+      }
     </div>
   </div>
 

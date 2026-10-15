@@ -199,6 +199,8 @@ export function staleReasonLabel(reason: string | null): string {
       return $localize`:@@staleReason.subcontractorBlocked:a firm it ranks was blocked in the directory`;
     case 'bid_withdrawn':
       return $localize`:@@staleReason.bidWithdrawn:a firm it ranks withdrew its bid`;
+    case 'bid_excluded':
+      return $localize`:@@staleReason.bidExcluded:a bid it ranks was excluded after opening`;
     case 'evaluation_not_completed':
       return $localize`:@@staleReason.evaluationNotCompleted:the evaluation is not complete`;
     default:
@@ -309,6 +311,8 @@ export function approvalBlockerLabel(blocker: string | null): string {
   switch (blocker) {
     case 'self_approval':
       return $localize`:@@approvalBlocker.self:You submitted this decision, and the approval rule does not allow self-approval. Another approver must act on it.`;
+    case 'prepared':
+      return $localize`:@@approvalBlocker.prepared:You prepared this decision, and the approval rule does not allow self-approval. Another approver must act on it.`;
     case 'role_required':
       return $localize`:@@approvalBlocker.role:The next approval step needs an approver with a different role.`;
     case 'recommendation_stale':
@@ -358,12 +362,17 @@ export function ineligibleReasonLabel(reason: string | null): string {
       return $localize`:@@ineligible.blocked:Blocked in the directory: must not be engaged. Its price sets no baseline.`;
     case 'withdrawn_after_opening':
       return $localize`:@@ineligible.withdrawn:The firm withdrew this bid after opening. Its price sets no baseline.`;
+    case 'excluded_after_opening':
+      return $localize`:@@ineligible.excluded:Excluded after opening by an approved request. Its price sets no baseline.`;
     default:
       return $localize`:@@ineligible.other:Not eligible under this policy.`;
   }
 }
 
-export function candidateFlagLabel(flag: string): string {
+export function candidateFlagLabel(flag: string, retrospectiveProjects = 0): string {
+  // Phase 1 SI-042: a firm with confirmed past outcomes is not an unknown firm — say so, and that they are not weighed.
+  if (flag === 'no_history' && retrospectiveProjects > 0)
+    return $localize`:@@candidateFlag.noCloseoutHistory:No closeout history — ${retrospectiveProjects}:count: past outcome(s) recorded (not system-evidenced, not weighed)`;
   return (
     (
       {

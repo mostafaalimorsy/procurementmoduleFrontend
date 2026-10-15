@@ -37,6 +37,7 @@ import {
 } from '../tendering/tendering.api';
 import { vatTreatmentLabel } from '../evaluation/evaluation-labels';
 import {
+  BidderRatesImport,
   BID_LIMITS,
   BID_WORKSPACE_BACKEND,
   Bid,
@@ -65,6 +66,7 @@ interface BidForm {
   paymentTerms: string;
   durationDays: string;
   warrantyMonths: string;
+  mobilizationDays: string;
   exclusions: string[];
   commercialDeviations: string[];
   commercialNotes: string;
@@ -266,6 +268,55 @@ export class BidWorkspace implements OnInit {
     return this.form.itemRates.find((item) => item.key === key)?.rate ?? '';
   }
 
+  /** Phase 1 SI-030: the schedule as a workbook, and rates read back from it (a dry run until the draft saves). */
+  readonly ratesImport = signal<BidderRatesImport | null>(null);
+  readonly sheetSupported = computed(
+    () => !!this.api.scheduleWorkbook && !!this.api.readScheduleRates,
+  );
+
+  downloadSchedule(): void {
+    this.api.scheduleWorkbook?.(this.token()).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const link = this.document.createElement('a');
+        link.href = url;
+        link.download = 'price-schedule.xlsx';
+        link.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () =>
+        this.ratesError.set(
+          $localize`:@@bidWorkspace.scheduleDownloadFailed:The schedule could not be downloaded. Try again.`,
+        ),
+    });
+  }
+
+  readonly ratesError = signal('');
+
+  readRates(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    this.ratesImport.set(null);
+    this.ratesError.set('');
+    if (!file) return;
+    this.api.readScheduleRates?.(this.token(), file).subscribe({
+      next: (result) => this.ratesImport.set(result),
+      error: () =>
+        this.ratesError.set(
+          $localize`:@@bidWorkspace.ratesReadFailed:The file could not be read. Use the downloaded schedule or a CSV with item and rate columns.`,
+        ),
+    });
+  }
+
+  /** Puts the checked rates into the form; the draft then saves as usual and the server judges them again. */
+  applyRates(): void {
+    const result = this.ratesImport();
+    if (!result || !this.editable()) return;
+    for (const item of result.rates) if (item.key && item.rate) this.setRate(item.key, item.rate);
+    this.ratesImport.set(null);
+  }
+
   setRate(key: string, value: string): void {
     const others = this.form.itemRates.filter((item) => item.key !== key);
     this.form.itemRates = value.trim() ? [...others, { key, rate: value }] : others;
@@ -280,8 +331,8 @@ export class BidWorkspace implements OnInit {
     return trimDecimal(value);
   }
 
-  /** Quantity × rate exactly (never rounded), as the server will judge it; a provisional sum is the buyer's amount. */
-  itemPrice(item: ScheduleItem): { amount: string | null; problem: 'inexact' | 'range' | null } {
+  /** Quantity × rate rounded once to the currency's decimals (ADR-179), as the server computes it; a provisional sum is the buyer's amount. */
+  itemPrice(item: ScheduleItem): { amount: string | null; problem: 'range' | null } {
     if (item.type === 'ProvisionalSum') return { amount: item.provisionalAmount, problem: null };
     if (item.type === 'RateOnly') return { amount: null, problem: null };
     const rate = parseMoney(latinDigits(this.rateText(item.key)), RATE_DECIMALS, true).value;
@@ -922,7 +973,7 @@ export class BidWorkspace implements OnInit {
         errors[`lines.${index}.description`] = tooLong(BID_LIMITS.lineDescription);
     });
     const range = (
-      key: 'validityDays' | 'durationDays' | 'warrantyMonths',
+      key: 'validityDays' | 'durationDays' | 'warrantyMonths' | 'mobilizationDays',
       min: number,
       max: number,
     ) => {
@@ -945,6 +996,7 @@ export class BidWorkspace implements OnInit {
     range('validityDays', BID_LIMITS.validityMin, BID_LIMITS.validityMax);
     range('durationDays', BID_LIMITS.durationMin, BID_LIMITS.durationMax);
     range('warrantyMonths', 0, BID_LIMITS.warrantyMax);
+    range('mobilizationDays', 0, BID_LIMITS.mobilizationMax);
     this.errors.set(errors);
   }
 
@@ -968,6 +1020,7 @@ export class BidWorkspace implements OnInit {
       paymentTerms: text(this.form.paymentTerms),
       durationDays: whole(this.form.durationDays),
       warrantyMonths: whole(this.form.warrantyMonths),
+      mobilizationDays: whole(this.form.mobilizationDays),
       exclusions: list(this.form.exclusions),
       commercialDeviations: list(this.form.commercialDeviations),
       commercialNotes: text(this.form.commercialNotes),
@@ -1024,6 +1077,7 @@ function emptyForm(): BidForm {
     paymentTerms: '',
     durationDays: '',
     warrantyMonths: '',
+    mobilizationDays: '',
     exclusions: [],
     commercialDeviations: [],
     commercialNotes: '',
@@ -1054,6 +1108,7 @@ function toForm(content: BidContent, decimals: number, locale: string): BidForm 
     paymentTerms: content.paymentTerms ?? '',
     durationDays: content.durationDays?.toString() ?? '',
     warrantyMonths: content.warrantyMonths?.toString() ?? '',
+    mobilizationDays: content.mobilizationDays?.toString() ?? '',
     exclusions: [...content.exclusions],
     commercialDeviations: [...content.commercialDeviations],
     commercialNotes: content.commercialNotes ?? '',

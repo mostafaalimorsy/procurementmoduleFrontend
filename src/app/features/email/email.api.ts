@@ -250,6 +250,10 @@ export function templateLabel(key: string): string {
         'tender.cancelled': $localize`:@@template.tenderCancelled:Tender cancelled`,
         'tender.round_closed': $localize`:@@template.roundClosed:Negotiation round closed`,
         'tender.round_cancelled': $localize`:@@template.roundCancelled:Negotiation round cancelled`,
+        'tender.bid_withdrawal_recorded': $localize`:@@template.bidWithdrawalRecorded:Bid withdrawal recorded (to the firm)`,
+        'tender.bid_excluded': $localize`:@@template.bidExcluded:Bid no longer considered (to the firm)`,
+        'tender.award_withdrawn': $localize`:@@template.awardWithdrawn:Award withdrawn (to the firm told it was selected)`,
+        'tender.closed_without_award': $localize`:@@template.closedWithoutAward:Tender closed without an award (to invited firms)`,
       } as Record<string, string>
     )[key] ?? key
   );

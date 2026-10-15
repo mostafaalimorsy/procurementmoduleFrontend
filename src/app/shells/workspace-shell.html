@@ -160,6 +160,25 @@
                     >Pilot metrics</a
                   >
                 }
+                <!-- Phase 1 SI-068 / SI-124: the exceptions register and direct awards follow the pilot metrics. -->
+                @if (showExceptions()) {
+                  <a
+                    routerLink="/exceptions"
+                    [class.is-active]="section() === 'exceptions'"
+                    [attr.aria-current]="section() === 'exceptions' ? 'page' : null"
+                    i18n="@@nav.exceptions"
+                    >Exceptions</a
+                  >
+                }
+                @if (showDirectAwards()) {
+                  <a
+                    routerLink="/direct-awards"
+                    [class.is-active]="section() === 'directAwards'"
+                    [attr.aria-current]="section() === 'directAwards' ? 'page' : null"
+                    i18n="@@nav.directAwards"
+                    >Direct awards</a
+                  >
+                }
                 @if (showCompanyUsers()) {
                   <a
                     routerLink="/admin/users"
@@ -168,6 +187,10 @@
                     i18n="@@nav.users"
                     >Company users</a
                   >
+                }
+                <!-- Phase 1 SI-137: the plan and its commercial footing (read-only), from Settings. -->
+                @if (showCompanyUsers()) {
+                  <a routerLink="/admin/users" fragment="plan-title" i18n="@@nav.plan">Plan</a>
                 }
                 @if (showCompanyEmail()) {
                   <a
@@ -216,6 +239,9 @@
                 <small>{{ roleLabel() }}</small>
               }
             </span>
+            <a class="shell-signout" routerLink="/account/security" data-testid="account-security"
+              ><span i18n="@@shell.accountSecurity">Account security</span></a
+            >
             <button type="button" class="shell-signout" (click)="logout()" i18n="@@shell.logout">
               Sign out
             </button>
@@ -265,10 +291,11 @@
           class="prj-note"
           role="note"
           data-testid="workflow-end-banner"
-          i18n="@@shell.planEndsAtEvaluation"
+          i18n="@@shell.planEndsAtEvaluationV2"
         >
-          Your plan ends at evaluation: bids can be opened and evaluated here, and a tender then
-          closes without an award in the product.
+          Your plan ends at evaluation: bids can be opened and evaluated here, and a new tender then
+          closes without an award in the product. Awards already issued stay on record but cannot be
+          opened in this plan.
         </p>
       }
       @case ('award') {

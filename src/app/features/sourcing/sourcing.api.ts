@@ -183,6 +183,9 @@ export interface SourcingDetail {
   readonly requireIndependentApproval?: boolean;
   /** CF-057 (OD-10): why the low-value fast path does not apply (off, four_eyes, value); null when it does. */
   readonly fastPathUnavailable?: 'off' | 'four_eyes' | 'value' | null;
+  /** Phase 1 SI-025 (ADR-184): fewer firms shortlisted than the company's competition minimum. */
+  readonly competitionShortfall?: boolean;
+  readonly minimumCompliantBids?: number;
 }
 
 export type CandidateState = 'none' | 'candidate' | 'removed';
@@ -210,6 +213,8 @@ export interface DiscoveryEvidence {
   readonly wouldWorkAgainYes: number | null;
   readonly wouldWorkAgainConditional: number | null;
   readonly wouldWorkAgainNo: number | null;
+  /** Phase 1 SI-042: confirmed past outcomes — not system-evidenced, never weighed. */
+  readonly pastOutcomes?: number;
 }
 
 export interface DiscoveryOptions {

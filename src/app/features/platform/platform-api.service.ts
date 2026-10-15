@@ -136,14 +136,18 @@ export interface CompanyInFlight {
 export function frozenBy(feature: string): readonly string[] {
   switch (feature) {
     case 'tendering':
-    case 'bidder_portal':
       return ['open_tenders', 'open_rounds'];
     case 'evaluation':
       return ['open_tenders'];
     case 'award':
-      return ['open_rounds', 'decisions_pending_approval', 'decisions_approved_not_awarded'];
+      return [
+        'open_rounds',
+        'decisions_pending_approval',
+        'decisions_approved_not_awarded',
+        'awards_issued',
+      ];
     case 'performance':
-      return ['closeouts_in_progress'];
+      return ['closeouts_in_progress', 'closeouts_finalized'];
     default:
       return [];
   }

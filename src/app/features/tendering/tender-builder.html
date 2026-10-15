@@ -340,6 +340,23 @@
                 the award has no duration to measure delivery against.</small
               >
             </div>
+            <div class="prj-field prj-span-all">
+              <label class="tnd-choice">
+                <input
+                  type="checkbox"
+                  name="mobilizationRequired"
+                  [disabled]="!canEdit()"
+                  [(ngModel)]="form.mobilizationRequired"
+                />
+                <ng-container i18n="@@tenderBuilder.mobilizationRequired"
+                  >Bidders must state within how many days of award they mobilize</ng-container
+                >
+              </label>
+              <small class="prj-hint tnd-block" i18n="@@tenderBuilder.mobilizationRequiredHint"
+                >Bidders can always state it. The awarded period is frozen with the award and
+                compared with the actual start at closeout.</small
+              >
+            </div>
             <fieldset class="prj-fieldset prj-span-all">
               <legend i18n="@@tenderBuilder.scheduleLegend">Price schedule</legend>
               <app-schedule-editor
@@ -692,6 +709,14 @@
                     <td>
                       <bdi dir="ltr" class="tnd-code">{{ member.code }}</bdi>
                       <bdi>{{ member.legalName }}</bdi>
+                      @if (awardEnded(member.subcontractorId)) {
+                        <!-- Phase 1 D04 B (ADR-184): flagged, never refused. -->
+                        <span
+                          class="prj-chip tnd-attention tnd-block"
+                          i18n="@@tenderBuilder.awardEnded"
+                          >Its award on the tender this replaces ended — check before inviting</span
+                        >
+                      }
                     </td>
                     <td>
                       <span class="prj-chip prj-chip--{{ member.currentStanding }}">{{
@@ -862,6 +887,48 @@
               </p>
             </div>
           </div>
+          <!-- Phase 1 SI-105: an optional pre-bid meeting or site visit, notified with the invitation. -->
+          <fieldset class="prj-fieldset" [disabled]="!canEdit()">
+            <legend i18n="@@tenderBuilder.siteVisitLegend">Pre-bid meeting or site visit</legend>
+            <p class="prj-hint" i18n="@@tenderBuilder.siteVisitHelp">
+              Optional. Bidders see it in the invitation and on their tender page. You record who
+              attended; a firm missing a mandatory visit is flagged at opening, never excluded
+              automatically.
+            </p>
+            <div class="prj-grid">
+              <div class="prj-field">
+                <label for="tender-site-visit-at" i18n="@@tenderBuilder.siteVisitAt">When</label>
+                <input
+                  id="tender-site-visit-at"
+                  name="siteVisitAtLocal"
+                  type="datetime-local"
+                  dir="ltr"
+                  [(ngModel)]="form.siteVisitAtLocal"
+                />
+              </div>
+              <div class="prj-field">
+                <label for="tender-site-visit-place" i18n="@@tenderBuilder.siteVisitPlace"
+                  >Where</label
+                >
+                <input
+                  id="tender-site-visit-place"
+                  name="siteVisitPlace"
+                  maxlength="300"
+                  [(ngModel)]="form.siteVisitPlace"
+                />
+              </div>
+              <label class="tnd-choice prj-span-all">
+                <input
+                  type="checkbox"
+                  name="siteVisitMandatory"
+                  [(ngModel)]="form.siteVisitMandatory"
+                />
+                <ng-container i18n="@@tenderBuilder.siteVisitMandatory"
+                  >Attendance is mandatory</ng-container
+                >
+              </label>
+            </div>
+          </fieldset>
           <fieldset class="prj-fieldset" [disabled]="!canEdit()">
             <legend i18n="@@tenderBuilder.remindersLegend">Automatic reminders</legend>
             <p class="prj-hint" i18n="@@tenderBuilder.remindersHelp">
@@ -1130,6 +1197,38 @@
         @for (warning of policyWarnings(); track warning) {
           <p class="prj-note tnd-attention-box" role="note" data-testid="policy-warning">
             {{ warning }}
+          </p>
+        }
+        <!-- Phase 1 SI-025 / SI-118 (ADR-184, P1-D16 B): the competition warning and the company's optional gates. -->
+        @if (tender().competitionShortfall) {
+          <p
+            class="prj-note tnd-attention-box"
+            role="note"
+            data-testid="competition-warning"
+            i18n="@@tenderBuilder.competitionShortfall"
+          >
+            Fewer firms are invited ({{ invitees().length }}) than your company's competition
+            minimum ({{ tender().minimumCompliantBids }}). The decision will need a
+            limited-competition justification.
+          </p>
+          @if (tender().competitionJustificationRequired) {
+            <div class="prj-field">
+              <label for="publish-competition-reason" i18n="@@tenderBuilder.competitionReason"
+                >Why publish with fewer firms (required by your company)</label
+              >
+              <textarea
+                id="publish-competition-reason"
+                rows="2"
+                maxlength="500"
+                [(ngModel)]="competitionReason"
+              ></textarea>
+            </div>
+          }
+        }
+        @if (tender().estimateMissingForPublication) {
+          <p class="prj-note tnd-attention-box" role="note" i18n="@@tenderBuilder.estimateRequired">
+            Your company requires an estimate for the work package before publication. Record it on
+            the work package first.
           </p>
         }
         @if (dialogError()) {

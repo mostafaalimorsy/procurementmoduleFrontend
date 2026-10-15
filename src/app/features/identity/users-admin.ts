@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { ActingRolesPanel } from './acting-roles-panel';
 import { CompanyPlanPanel } from './company-plan-panel';
 import { ConfirmDialog } from '../../shared/ui/confirm-dialog';
 import { BusinessDatePipe } from '../../core/localization/business-format';
@@ -13,6 +14,7 @@ import {
   PREDEFINED_ROLES,
   PredefinedRole,
   TENANT_PERMISSIONS,
+  MemberResponsibility,
   TenantIdentityApi,
   QuotaState,
   TenantUser,
@@ -23,7 +25,14 @@ import {
 
 @Component({
   selector: 'app-users-admin',
-  imports: [FormsModule, RouterLink, CompanyPlanPanel, ConfirmDialog, BusinessDatePipe],
+  imports: [
+    FormsModule,
+    RouterLink,
+    CompanyPlanPanel,
+    ConfirmDialog,
+    BusinessDatePipe,
+    ActingRolesPanel,
+  ],
   templateUrl: './users-admin.html',
   styleUrl: './users-admin.scss',
 })
@@ -170,9 +179,33 @@ export class UsersAdmin implements OnInit {
   /** CF-088: suspending, forcing a reset and resetting an authenticator end the person's sessions — confirmed first. */
   readonly pending = signal<{ kind: 'suspend' | 'reset' | 'mfa'; user: TenantUser } | null>(null);
 
+  /** Phase 1 SI-081 (ADR-184): what the member to suspend is still named for (loaded when the suspension is asked). */
+  readonly responsibilities = signal<readonly MemberResponsibility[]>([]);
+
   ask(kind: 'suspend' | 'reset' | 'mfa', user: TenantUser): void {
     if (this.busyAction() || this.isSelf(user)) return;
     this.pending.set({ kind, user });
+    this.responsibilities.set([]);
+    if (kind === 'suspend')
+      this.api.responsibilities(user.id).subscribe({
+        next: (items) => this.responsibilities.set(items),
+        error: () => this.responsibilities.set([]),
+      });
+  }
+
+  responsibilityLabel(item: MemberResponsibility): string {
+    switch (item.kind) {
+      case 'project.manager':
+        return $localize`:@@users.resp.projectManager:Project Manager of ${item.reference}:ref:`;
+      case 'project.procurement_owner':
+        return $localize`:@@users.resp.procurementOwner:Procurement owner of ${item.reference}:ref:`;
+      case 'evaluation.panel':
+        return $localize`:@@users.resp.panel:On the evaluation panel of ${item.reference}:ref:`;
+      case 'decision.submitted_pending':
+        return $localize`:@@users.resp.decision:Submitted the decision on ${item.reference}:ref:, which only they (or an approval-matrix manager) can withdraw`;
+      default:
+        return $localize`:@@users.resp.acting:Acting approver role (${item.reference}:role:) still to run`;
+    }
   }
 
   pendingHeading(kind: 'suspend' | 'reset' | 'mfa'): string {

@@ -75,6 +75,11 @@ interface DraftForm {
   bidValidityDays: string;
   technicalProposalRequired: boolean;
   durationRequired: boolean;
+  mobilizationRequired: boolean;
+  /** Phase 1 SI-105: the optional pre-bid meeting or site visit. */
+  siteVisitAtLocal: string;
+  siteVisitPlace: string;
+  siteVisitMandatory: boolean;
   vatTreatment: VatTreatment | '';
   vatRatePercent: string;
   pricingNote: string;
@@ -534,6 +539,11 @@ export class TenderBuilder {
       });
   }
 
+  /** Phase 1 D04 B (ADR-184): the firm's award on the tender this one replaces ended (declined or withdrawn). */
+  awardEnded(subcontractorId: string): boolean {
+    return this.tender().origin?.awardEndedSubcontractorIds?.includes(subcontractorId) ?? false;
+  }
+
   memberFor(invitation: TenderInvitation): ShortlistMember | undefined {
     return this.members().find((member) => member.subcontractorId === invitation.subcontractorId);
   }
@@ -554,6 +564,9 @@ export class TenderBuilder {
     this.dialog.set(dialog);
   }
 
+  /** Phase 1 SI-025 (ADR-184): the justification for publishing below the company's competition minimum, when it asks for one. */
+  competitionReason = '';
+
   close(): void {
     if (!this.busy()) this.dialog.set(null);
   }
@@ -566,7 +579,11 @@ export class TenderBuilder {
     let message: string;
     switch (dialog.kind) {
       case 'publish':
-        request = this.api.publish(tender.id, tender.version);
+        request = this.api.publish(
+          tender.id,
+          tender.version,
+          this.competitionReason.trim() || null,
+        );
         message = $localize`:@@tenderBuilder.published:Tender published. Invitation emails are being sent.`;
         break;
       case 'cancel':
@@ -646,6 +663,16 @@ export class TenderBuilder {
       bidValidityDays: this.form.bidValidityDays.trim() ? Number(this.form.bidValidityDays) : null,
       technicalProposalRequired: this.form.technicalProposalRequired,
       durationRequired: this.form.durationRequired,
+      mobilizationRequired: this.form.mobilizationRequired,
+      siteVisitSet: true,
+      siteVisit:
+        this.form.siteVisitAtLocal || this.form.siteVisitPlace.trim()
+          ? {
+              atLocal: this.form.siteVisitAtLocal || null,
+              place: this.form.siteVisitPlace.trim() || null,
+              mandatory: this.form.siteVisitMandatory,
+            }
+          : null,
       pricing: {
         treatment: this.form.vatTreatment || null,
         vatRatePercent:
@@ -693,6 +720,10 @@ export class TenderBuilder {
       bidValidityDays: tender.bidValidityDays?.toString() ?? '',
       technicalProposalRequired: tender.technicalProposalRequired,
       durationRequired: tender.durationRequired,
+      mobilizationRequired: tender.mobilizationRequired ?? false,
+      siteVisitAtLocal: tender.siteVisit?.at.local ?? '',
+      siteVisitPlace: tender.siteVisit?.place ?? '',
+      siteVisitMandatory: tender.siteVisit?.mandatory ?? false,
       vatTreatment: tender.pricing?.treatment ?? '',
       vatRatePercent: tender.pricing?.vatRatePercent ?? '',
       pricingNote: tender.pricing?.note ?? '',
@@ -727,6 +758,10 @@ export class TenderBuilder {
       bidValidityDays: '',
       technicalProposalRequired: false,
       durationRequired: true,
+      mobilizationRequired: false,
+      siteVisitAtLocal: '',
+      siteVisitPlace: '',
+      siteVisitMandatory: false,
       vatTreatment: '',
       vatRatePercent: '',
       pricingNote: '',

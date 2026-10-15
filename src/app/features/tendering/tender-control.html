@@ -13,6 +13,34 @@
   </div>
 }
 
+@if (tender().status === 'ClosedWithoutActiveAward') {
+  <!-- Phase 1 D04 B (ADR-184): the linked re-tender. -->
+  <div class="prj-note" role="note" data-testid="retender">
+    @if (tender().replacedByTenderId) {
+      <p i18n="@@control.replacedBy">
+        Replaced by the re-tender
+        <a [routerLink]="['/tenders', tender().replacedByTenderId]"
+          ><bdi dir="ltr">{{ tender().replacedByReference }}</bdi></a
+        >.
+      </p>
+    } @else if (canRetender()) {
+      <button
+        class="prj-btn"
+        type="button"
+        [disabled]="busy()"
+        (click)="startRetender()"
+        i18n="@@control.startRetender"
+      >
+        Start re-tender
+      </button>
+      <p class="prj-hint" i18n="@@control.startRetenderHint">
+        A new draft on the same work package with this tender's content and documents, linked to
+        this one. Firms whose award ended here are flagged when you invite them.
+      </p>
+    }
+  </div>
+}
+
 @if (tender().closure; as closure) {
   @if (tender().status === 'Published') {
     <div class="prj-note tnd-attention-box" role="note">
@@ -638,17 +666,50 @@
         <ng-container i18n="@@control.closeEarly">Close tender early</ng-container>
       </button>
     }
-    @if (canCloseWithoutAward()) {
-      <button class="prj-btn prj-btn--ghost" type="button" (click)="startCloseWithoutAward()">
-        <ng-container i18n="@@control.closeWithoutAward">Close without award</ng-container>
-      </button>
-    }
-    @if (canCancel()) {
-      <button class="prj-btn prj-btn--ghost prj-btn--danger" type="button" (click)="startCancel()">
-        <ng-container i18n="@@control.cancelTender">Cancel tender</ng-container>
-      </button>
+    @if (bidsOpened()) {
+      <!-- Phase 1 D02 (ADR-183): after opening these need the company's configured approver. -->
+      @if (canCloseWithoutAward()) {
+        <a
+          class="prj-btn prj-btn--ghost"
+          [routerLink]="['/tenders', tender().id, 'post-opening']"
+          [queryParams]="{ act: 'RetenderClosure' }"
+          i18n="@@control.requestCloseWithoutAward"
+          >Request closure without award</a
+        >
+      }
+      @if (canCancel()) {
+        <a
+          class="prj-btn prj-btn--ghost prj-btn--danger"
+          [routerLink]="['/tenders', tender().id, 'post-opening']"
+          [queryParams]="{ act: 'TenderCancellation' }"
+          i18n="@@control.requestCancellation"
+          >Request cancellation (needs approval)</a
+        >
+      }
+    } @else {
+      @if (canCloseWithoutAward()) {
+        <button class="prj-btn prj-btn--ghost" type="button" (click)="startCloseWithoutAward()">
+          <ng-container i18n="@@control.closeWithoutAward">Close without award</ng-container>
+        </button>
+      }
+      @if (canCancel()) {
+        <button
+          class="prj-btn prj-btn--ghost prj-btn--danger"
+          type="button"
+          (click)="startCancel()"
+        >
+          <ng-container i18n="@@control.cancelTender">Cancel tender</ng-container>
+        </button>
+      }
     }
   </div>
+}
+@if (bidsOpened() && tender().status === 'Published') {
+  <p class="prj-hint">
+    <a [routerLink]="['/tenders', tender().id, 'post-opening']" i18n="@@control.postOpeningLink"
+      >Post-opening approvals</a
+    >
+  </p>
 }
 
 @if (selected(); as invitation) {

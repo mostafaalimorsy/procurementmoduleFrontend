@@ -1,7 +1,8 @@
 import { ComplianceItem } from '../subcontractors/compliance.api';
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, switchMap } from 'rxjs';
+import { Observable } from 'rxjs';
+import { LabelledScorecard } from '../evaluation/evaluation.api';
 import { problemMessage } from '../../core/localization/product-problem';
 import { EVALUATION_FEATURES } from '../evaluation/evaluation.api';
 import { TenderLocalTime } from '../tendering/tendering.api';
@@ -746,7 +747,7 @@ export interface DecisionWorkspace {
   readonly routePreview: ApprovalRoute | null;
   readonly currentSubmission: DecisionSubmission | null;
   readonly submissions: readonly DecisionSubmission[];
-  /** self_approval, role_required, recommendation_stale, already_approved — or null. */
+  /** self_approval, prepared (ADR-180), role_required, recommendation_stale, already_approved — or null. */
   readonly approvalBlocker: string | null;
   readonly award: Award | null;
   readonly timeline: readonly DecisionTimelineEntry[];
@@ -767,6 +768,10 @@ export interface DecisionWorkspace {
    * award kept (`reserve_rank_1`) or the best-ranked eligible bid that was not awarded before (`next_ranked`). A suggestion only.
    */
   readonly promotionSuggestion?: PromotionSuggestion | null;
+  /** Phase 1 SI-006 (ADR-184): bids ranked first only because a bid above them was withdrawn or excluded after opening. */
+  readonly outrankedByRemoved?: readonly string[] | null;
+  /** Phase 1 SI-036 (ADR-184): counted scorecards from off the named panel or from a price-aware scorer. */
+  readonly labelledScorecards?: readonly LabelledScorecard[] | null;
 }
 
 export interface PromotionSuggestion {
@@ -823,6 +828,8 @@ export interface DecisionControls {
   readonly proposedOverBudget: boolean | null;
   readonly proposedVariancePercent: string | null;
   readonly estimateChangedAfterPublication: boolean;
+  /** Phase 1 SI-118 (ADR-184): for estimate readers — no estimate, so the over-budget check did not run. */
+  readonly estimateMissing?: boolean;
   /** CF-028: the package has no category, so no performance history is used. */
   readonly historyCategoryMissing: boolean;
   /**
@@ -1222,18 +1229,6 @@ export class DecisionApi {
     return this.http.post<DecisionWorkspace>(`${this.tender(tenderId)}/award/reserves/release`, {});
   }
 
-  /** CF-046: after a declined or withdrawn award, closes the tender so its work package can be tendered again. */
-  closeForRetender(tenderId: string, reason: string): Observable<{ status: string }> {
-    return this.http.get<{ version: string }>(this.tender(tenderId)).pipe(
-      switchMap((tender) =>
-        this.http.post<{ status: string }>(`${this.tender(tenderId)}/close-for-retender`, {
-          reason,
-          version: tender.version,
-        }),
-      ),
-    );
-  }
-
   /** CF-003 (ADR-109): the decision / award pack for printing (audited on the server). */
   pack(tenderId: string): Observable<DecisionPack> {
     return this.http.get<DecisionPack>(`${this.tender(tenderId)}/decision/pack`);
@@ -1320,6 +1315,8 @@ export interface DecisionPack {
     readonly currentRevisionNumber: number;
     readonly contentSha256: string;
     readonly withdrawnAfterOpening: boolean;
+    /** Phase 1 D02 (ADR-183): an approved material exclusion after opening. */
+    readonly excludedAfterOpening?: boolean;
   }[];
 }
 

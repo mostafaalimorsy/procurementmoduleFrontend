@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { BusinessDatePipe } from '../../core/localization/business-format';
+import { postOpeningActionLabel } from '../tendering/tendering.api';
 import {
   IntelligenceApi,
   MyWork,
@@ -139,10 +140,14 @@ export class MyWorkPanel implements OnInit {
         return ['/sourcing', item.recordId];
       case 'round.past_deadline':
         return [...tender, 'negotiation'];
+      // Phase 1 D02 (ADR-183): a post-opening act waits for the reader's approval.
+      case 'post_opening.awaiting_my_approval':
+        return [...tender, 'post-opening'];
       case 'evaluation.scorecards_missing':
       case 'evaluation.leveling':
       case 'evaluation.ready_to_complete':
       case 'evaluation.refresh_required':
+      case 'evaluation.to_start':
       case 'tender.awaiting_opening':
         return [...tender, 'evaluation'];
       case 'decision.to_prepare':
@@ -155,9 +160,15 @@ export class MyWorkPanel implements OnInit {
       case 'closeout.commercial_missing':
       case 'closeout.to_finalize':
       case 'closeout.reopened':
+      case 'closeout.to_acknowledge':
         return ['/closeouts', item.recordId];
       case 'closeout.pm_unassigned':
         return ['/projects', item.recordId, 'edit'];
+      case 'direct_award.to_decide':
+      case 'direct_award.to_ratify':
+        return ['/direct-awards'];
+      case 'retrospective.awaiting_confirmation':
+        return ['/retrospective-outcomes', item.recordId];
       default:
         return tender;
     }
@@ -198,8 +209,13 @@ export class MyWorkPanel implements OnInit {
       case 'tender.awaiting_opening':
         // Re-audit AW (H4): the deadline passed — the bids wait for those who open them.
         return $localize`:@@myWork.openBids:Bidding closed — open the bids`;
+      case 'post_opening.awaiting_my_approval':
+        return $localize`:@@myWork.postOpening:Approval needed after opening — ${postOpeningActionLabel(item.reason ?? '')}:act:`;
       case 'round.past_deadline':
         return $localize`:@@myWork.roundOverdue:Negotiation round ${count}:round: past its deadline — close it`;
+      case 'evaluation.to_start':
+        // Phase 1 SI-035: the bids are open and no evaluation has started.
+        return $localize`:@@myWork.startEvaluation:Bids opened — start the evaluation`;
       case 'evaluation.scorecards_missing':
         return $localize`:@@myWork.scorecards:Bids to score: ${count}:count:`;
       case 'evaluation.leveling':
@@ -238,9 +254,23 @@ export class MyWorkPanel implements OnInit {
         return $localize`:@@myWork.commercial:Closeout: record the commercial section`;
       case 'closeout.to_finalize':
         return $localize`:@@myWork.finalize:Closeout ready to finalize`;
+      case 'closeout.to_acknowledge':
+        // Phase 1 SI-063: a negative outcome waits for procurement leadership before it counts as history.
+        return $localize`:@@myWork.acknowledge:Negative closeout outcome awaiting your acknowledgement`;
       case 'closeout.reopened':
         // Red-team B-001-5 (H14): a reopened closeout is its own kind, routed like the finalization.
         return $localize`:@@myWork.reopened:Closeout reopened for correction — correct it and finalize again`;
+      case 'retrospective.awaiting_confirmation':
+        // Phase 1 SI-020: a checked file's records (one attestation confirms them all), or one record entered by hand.
+        return item.reason === 'file'
+          ? $localize`:@@myWork.retrospectiveFile:Past outcomes awaiting confirmation: ${item.reference}:count: record(s) from an imported file`
+          : $localize`:@@myWork.retrospectiveRecord:Past outcome awaiting confirmation`;
+      case 'direct_award.to_decide':
+        return $localize`:@@myWork.directAwardDecide:Emergency direct award awaiting your approval`;
+      case 'direct_award.to_ratify':
+        return item.reason === 'overdue'
+          ? $localize`:@@myWork.directAwardRatifyOverdue:Emergency direct award — ratification overdue`
+          : $localize`:@@myWork.directAwardRatify:Emergency direct award to ratify`;
       case 'closeout.pm_unassigned':
         return $localize`:@@myWork.assignProjectManager:Accepted award without a Project Manager — assign one to the project`;
       default:

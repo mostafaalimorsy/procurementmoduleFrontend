@@ -151,6 +151,46 @@
         </div>
       </fieldset>
 
+      <!-- Phase 1 SI-100: where the record came from, the regions served and who owns the relationship. -->
+      <fieldset class="prj-fieldset">
+        <legend i18n="@@directoryField.relationship">Relationship</legend>
+        <div class="prj-grid">
+          <div class="prj-field">
+            <label for="source" i18n="@@directoryField.source">Source</label>
+            <select id="source" name="source" [(ngModel)]="source">
+              <option value="" i18n="@@directorySource.none">Not recorded</option>
+              @for (option of sources; track option) {
+                <option [value]="option">{{ sourceLabel(option) }}</option>
+              }
+            </select>
+          </div>
+          <div class="prj-field">
+            <label for="sourceNote" i18n="@@directoryField.sourceNote">Source note</label>
+            <input id="sourceNote" name="sourceNote" maxlength="200" [(ngModel)]="sourceNote" />
+          </div>
+          <div class="prj-field prj-span-all">
+            <label for="regions" i18n="@@directoryField.serviceRegions">Service regions</label>
+            <textarea id="regions" name="regions" rows="3" [(ngModel)]="regionsText"></textarea>
+            <small class="prj-hint" i18n="@@directoryField.serviceRegionsHint"
+              >One per line, at most 20. Discovery can filter on them.</small
+            >
+          </div>
+          @if (owners().length) {
+            <div class="prj-field">
+              <label for="owner" i18n="@@directoryField.relationshipOwner"
+                >Relationship owner</label
+              >
+              <select id="owner" name="owner" [(ngModel)]="ownerId">
+                <option value="" i18n="@@directory.noOwner">No owner</option>
+                @for (owner of owners(); track owner.accountId) {
+                  <option [value]="owner.accountId">{{ owner.displayName }}</option>
+                }
+              </select>
+            </div>
+          }
+        </div>
+      </fieldset>
+
       <fieldset class="prj-fieldset">
         <legend i18n="@@directoryField.trades">Trades</legend>
         @if (selectableTrades().length) {

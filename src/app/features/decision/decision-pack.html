@@ -103,6 +103,11 @@
                 @if (bid.withdrawnAfterOpening) {
                   <small class="tnd-block" i18n="@@pack.withdrawn">Withdrawn after opening</small>
                 }
+                @if (bid.excludedAfterOpening) {
+                  <small class="tnd-block" i18n="@@pack.excluded"
+                    >Excluded after opening (approved)</small
+                  >
+                }
               </td>
               <td>
                 <bdi dir="ltr">{{ bid.bidReference }}</bdi>
@@ -117,6 +122,25 @@
           }
         </tbody>
       </table>
+      <!-- Phase 1 SI-036 (ADR-184, P1-D05 A): counted scorecards from off the panel or from a price-aware scorer. -->
+      @if (item.decision.labelledScorecards?.length) {
+        <p i18n="@@pack.labelledIntro">Technical scorecards that count but are labelled:</p>
+        <ul>
+          @for (labelled of item.decision.labelledScorecards; track $index) {
+            <li>
+              <bdi dir="ltr">{{ labelled.subcontractorCode }}</bdi> ·
+              <bdi>{{ labelled.evaluatorName }}</bdi
+              >:
+              @if (labelled.offPanel) {
+                <ng-container i18n="@@evaluation.offPanel">not on the panel</ng-container>
+              }
+              @if (labelled.priceAware) {
+                &ngsp;<ng-container i18n="@@evaluation.priceAware">sees prices</ng-container>
+              }
+            </li>
+          }
+        </ul>
+      }
     </section>
 
     @if (item.decision.recommendation; as rec) {
@@ -163,7 +187,9 @@
                 </td>
                 <td>
                   @for (flag of candidate.flags; track flag) {
-                    <span class="tnd-block">{{ flagLabel(flag) }}</span>
+                    <span class="tnd-block">{{
+                      flagLabel(flag, candidate.retrospectiveProjects ?? 0)
+                    }}</span>
                   }
                 </td>
               </tr>

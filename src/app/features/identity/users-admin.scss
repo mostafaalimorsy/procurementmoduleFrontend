@@ -168,8 +168,11 @@ h2 {
   color: var(--color-muted);
 }
 
+/* Phase 2 SI-088: three roles are always required, so the note sits beside the role name rather than on a line of its own. */
 .security-role small {
-  display: block;
+  display: inline;
+  margin-inline-start: 0.35rem;
+  white-space: nowrap;
 }
 
 .security-group > label {

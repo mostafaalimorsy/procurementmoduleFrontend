@@ -631,6 +631,8 @@ describe('Workspace shell', () => {
       '/recommendation-policies',
       '/approval-matrix/read',
       '/pilot-metrics',
+      '/exceptions',
+      '/direct-awards',
     ]);
     expect(hrefs.some((href) => href!.startsWith('/admin/'))).toBe(false);
     expect(hrefs).not.toContain('/approval-matrix');

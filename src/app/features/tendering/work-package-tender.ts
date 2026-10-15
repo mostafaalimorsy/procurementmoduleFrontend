@@ -20,6 +20,7 @@ import {
   TenderType,
   TenderingApi,
   tenderProblemMessage,
+  isTerminalTender,
 } from './tendering.api';
 
 /**
@@ -252,7 +253,8 @@ export class WorkPackageTender {
     });
     this.api.forWorkPackage(workPackageId).subscribe({
       next: (page) => {
-        this.live.set(page.items.find((tender) => tender.status !== 'Cancelled') ?? null);
+        // ADR-110: as on the server, a tender closed for re-tender no longer holds the package.
+        this.live.set(page.items.find((tender) => !isTerminalTender(tender.status)) ?? null);
         this.loading.set(false);
       },
       error: (error: unknown) => {

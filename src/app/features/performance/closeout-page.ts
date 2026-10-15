@@ -42,7 +42,9 @@ import {
   lifecycleLabel,
   missingLabel,
   missingStep,
+  mobilizationCommitmentLabel,
   mobilizationLabel,
+  mobilizationVarianceLabel,
   outcomeEffectLabel,
   outcomeTypeLabel,
   ratingLabel,
@@ -101,6 +103,8 @@ export class CloseoutPage implements OnInit {
   readonly lifecycleLabel = lifecycleLabel;
   readonly ratingLabel = ratingLabel;
   readonly mobilizationLabel = mobilizationLabel;
+  readonly mobilizationCommitmentLabel = mobilizationCommitmentLabel;
+  readonly mobilizationVarianceLabel = mobilizationVarianceLabel;
   readonly rehireLabel = rehireLabel;
   readonly causeLabel = variationCauseLabel;
   readonly scheduleLabel = scheduleOutcomeLabel;
@@ -436,6 +440,36 @@ export class CloseoutPage implements OnInit {
 
   dismiss(): void {
     if (!this.acting()) this.confirming.set(null);
+  }
+
+  /** Phase 1 SI-063: the optional comment a procurement leader adds when acknowledging a negative outcome. */
+  acknowledgeComment = '';
+  private acknowledgeKey = '';
+
+  acknowledge(): void {
+    const view = this.workspace();
+    if (!view?.version || !view.canAcknowledge || this.acting()) return;
+    this.error.set('');
+    this.acknowledgeKey ||= requestKey();
+    this.acting.set(true);
+    this.api
+      .acknowledge(view.awardId, view.version, this.acknowledgeComment, this.acknowledgeKey)
+      .subscribe({
+        next: (updated) => {
+          this.acting.set(false);
+          this.acknowledgeKey = '';
+          this.acknowledgeComment = '';
+          this.apply(updated, 'both');
+          this.announce(
+            $localize`:@@closeout.acknowledged:Acknowledged. The outcome is now part of the performance history.`,
+          );
+        },
+        error: (error: unknown) => {
+          this.acting.set(false);
+          if (error instanceof HttpErrorResponse && error.status === 409) this.load();
+          this.error.set(performanceProblemMessage(error));
+        },
+      });
   }
 
   confirm(): void {

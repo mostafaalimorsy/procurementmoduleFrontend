@@ -61,9 +61,10 @@ interface Row {
             This period has more records than one read covers: choose a shorter period.
           </p>
         }
-        <div class="prj-table-wrap">
+        <!-- The month columns can scroll: a keyboard user reaches the region (axe scrollable-region-focusable). -->
+        <div class="prj-table-wrap" role="region" aria-labelledby="pilot-caption" tabindex="0">
           <table class="prj-table" data-testid="pilot-table">
-            <caption class="prj-visually-hidden" i18n="@@pilot.caption">
+            <caption id="pilot-caption" class="prj-visually-hidden" i18n="@@pilot.caption">
               Pilot metrics by month
             </caption>
             <thead>
@@ -128,7 +129,7 @@ export class PilotMetricsPage implements OnInit {
   readonly rows: readonly Row[] = [
     {
       label: $localize`:@@pilot.cycle:Tender cycle, publication to award (days)`,
-      definition: $localize`:@@pilot.cycleDefinition:Tenders first awarded in the month: days from publication to the award. Median and 90th percentile.`,
+      definition: $localize`:@@pilot.cycleDefinitionV3:Tenders first awarded in the month: days from publication to the award — for a re-tender, from the original tender's publication. Median and 90th percentile.`,
       cell: (period) => this.duration(period.tenderCycleDays),
     },
     {
@@ -172,8 +173,8 @@ export class PilotMetricsPage implements OnInit {
         ),
     },
     {
-      label: $localize`:@@pilot.closeout30:Closeouts finalized within 30 days of award`,
-      definition: $localize`:@@pilot.closeoutDefinition:Awards made in the month, counted once 30 (or 60) days have passed: those whose closeout was first finalized within that time.`,
+      label: $localize`:@@pilot.closeout30V3:Closeouts finalized within 30 days of works completion`,
+      definition: $localize`:@@pilot.closeoutDefinitionV3:Accepted awards made in the month, counted once 30 (or 60) days have passed since the works were expected complete (the package's planned end date, else the award plus the awarded duration): those whose closeout was first finalized within that time.`,
       cell: (period) =>
         this.rate(
           period.closeouts.within30Percent,
@@ -183,7 +184,7 @@ export class PilotMetricsPage implements OnInit {
         ),
     },
     {
-      label: $localize`:@@pilot.closeout60:Closeouts finalized within 60 days of award`,
+      label: $localize`:@@pilot.closeout60V3:Closeouts finalized within 60 days of works completion`,
       definition: $localize`:@@pilot.closeout60Definition:As above, at 60 days.`,
       cell: (period) =>
         this.rate(
@@ -192,6 +193,19 @@ export class PilotMetricsPage implements OnInit {
           period.closeouts.due60,
           true,
         ),
+    },
+    {
+      label: $localize`:@@pilot.completedWithout:Completed packages without a closeout`,
+      definition: $localize`:@@pilot.completedWithoutDefinition:Accepted awards made in the month whose works were expected complete by now and whose closeout is not finalized.`,
+      cell: (period) => String(period.closeouts.completedWithoutCloseout ?? 0),
+    },
+    {
+      label: $localize`:@@pilot.endedWithoutAward:Tenders ended without an award`,
+      definition: $localize`:@@pilot.endedWithoutAwardDefinition:Published tenders cancelled, or closed without an award, in the month — with the days from publication to that end.`,
+      cell: (period) =>
+        period.endedWithoutAward
+          ? $localize`:@@pilot.endedWithoutAwardCell:${period.endedWithoutAward.count}:count: · ${this.duration(period.endedWithoutAward.publicationToEndDays)}:days:`
+          : '—',
     },
   ];
 

@@ -132,6 +132,11 @@ const directoryFieldLabels = (): Record<string, string> => ({
   commercialRegistration: $localize`:@@directoryField.commercialRegistration:Commercial registration no.`,
   taxRegistration: $localize`:@@directoryField.taxRegistration:Tax registration no.`,
   country: $localize`:@@directoryField.country:Country`,
+  // Phase 1 SI-100
+  source: $localize`:@@directoryField.source:Source`,
+  sourceNote: $localize`:@@directoryField.sourceNote:Source note`,
+  serviceRegions: $localize`:@@directoryField.serviceRegions:Service regions`,
+  relationshipOwner: $localize`:@@directoryField.relationshipOwner:Relationship owner`,
   city: $localize`:@@directoryField.city:City`,
   notes: $localize`:@@directoryField.notes:Notes`,
   statusReason: $localize`:@@directoryField.statusReason:Reason`,
@@ -218,7 +223,11 @@ export type DeliveryKind =
   | 'BidSubmitted'
   | 'TenderCancelled'
   | 'NegotiationRoundClosed'
-  | 'NegotiationRoundCancelled';
+  | 'NegotiationRoundCancelled'
+  | 'BidWithdrawalRecorded'
+  | 'BidExcluded'
+  | 'AwardWithdrawn'
+  | 'TenderClosedWithoutAward';
 export type DeliveryAttemptStatus = 'Queued' | 'Sending' | 'Sent' | 'Failed' | 'Cancelled' | 'Held';
 export type ReminderStatus = 'Scheduled' | 'Processed' | 'Skipped' | 'Cancelled';
 export type InvitationEventType =
@@ -337,6 +346,10 @@ const deliveryKindLabels = (): Record<DeliveryKind, string> => ({
   TenderCancelled: $localize`:@@deliveryKind.tenderCancelled:Cancellation notice`,
   NegotiationRoundClosed: $localize`:@@deliveryKind.roundClosed:Round closed notice`,
   NegotiationRoundCancelled: $localize`:@@deliveryKind.roundCancelled:Round cancelled notice`,
+  BidWithdrawalRecorded: $localize`:@@deliveryKind.bidWithdrawalRecorded:Withdrawal recorded notice`,
+  BidExcluded: $localize`:@@deliveryKind.bidExcluded:Bid no longer considered notice`,
+  AwardWithdrawn: $localize`:@@deliveryKind.awardWithdrawn:Award withdrawn notice`,
+  TenderClosedWithoutAward: $localize`:@@deliveryKind.closedWithoutAward:Closed without an award notice`,
 });
 
 export function deliveryKindLabel(kind: string): string {
@@ -606,6 +619,7 @@ const bidFieldLabels = (): Record<string, string> => ({
   validityDays: $localize`:@@bidField.validityDays:Bid validity`,
   paymentTerms: $localize`:@@bidField.paymentTerms:Payment terms`,
   durationDays: $localize`:@@bidField.durationDays:Proposed duration`,
+  mobilizationDays: $localize`:@@bidField.mobilizationDays:Mobilization (days from award)`,
   warrantyMonths: $localize`:@@bidField.warrantyMonths:Warranty`,
   exclusions: $localize`:@@bidField.exclusions:Exclusions`,
   commercialDeviations: $localize`:@@bidField.commercialDeviations:Commercial deviations`,
@@ -670,8 +684,6 @@ export function bidGapLabel(
   switch (key) {
     case 'itemUnpriced':
       return $localize`:@@bidGap.itemUnpriced:Enter a rate for price schedule item ${code}:item:.`;
-    case 'itemAmountInexact':
-      return $localize`:@@bidGap.itemAmountInexact:Item ${code}:item:: quantity × rate is not an exact amount in the tender currency. Adjust the rate — amounts are never rounded.`;
     case 'itemAmountTooLarge':
       return $localize`:@@bidGap.itemAmountTooLarge:Item ${code}:item:: the amount is larger than the product can hold.`;
     case 'itemUnknown':
@@ -702,6 +714,8 @@ export function bidGapLabel(
       return $localize`:@@bidGap.termBidBond:Say whether you provide the required bid bond.`;
     case 'durationDays':
       return $localize`:@@bidGap.durationDays:State your proposed duration: the tender requires one.`;
+    case 'mobilizationDays':
+      return $localize`:@@bidGap.mobilizationDays:State within how many days of award you mobilize: the tender requires it.`;
     case 'scopeCompliance':
       return $localize`:@@bidGap.scopeCompliance:Say whether your bid covers the full scope.`;
     case 'deviationExplanation':

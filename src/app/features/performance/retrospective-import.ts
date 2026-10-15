@@ -123,6 +123,19 @@ import {
           <p class="prj-hint" i18n="@@retrospective.fixRows">
             Correct the refused rows and check the file again.
           </p>
+          <!-- Phase 1 SI-020: or import the valid rows now; the refused ones stay in this report. -->
+          @if (checked.canConfirmValidRows) {
+            <button
+              class="prj-btn prj-btn--ghost"
+              type="button"
+              data-testid="retro-import-valid-rows"
+              [disabled]="busy()"
+              (click)="confirm(true)"
+              i18n="@@retrospective.importValidRows"
+            >
+              Import the {{ checked.toCreate }} valid rows only
+            </button>
+          }
         } @else {
           <p class="prj-hint" i18n="@@retrospective.nothingNew">Nothing in this file is new.</p>
         }
@@ -163,12 +176,12 @@ export class RetrospectiveImport {
     });
   }
 
-  confirm(): void {
+  confirm(validRowsOnly = false): void {
     const file = this.file();
     const preview = this.preview();
     if (!file || !preview || this.busy()) return;
     this.busy.set(true);
-    this.api.confirmImport(file, preview.sha256).subscribe({
+    this.api.confirmImport(file, preview.sha256, validRowsOnly).subscribe({
       next: (result) => {
         this.busy.set(false);
         this.result.set(result);

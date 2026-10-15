@@ -11,11 +11,14 @@ import {
   DirectoryApi,
   DirectoryListOptions,
   Paged,
+  SUBCONTRACTOR_SOURCES,
   SUBCONTRACTOR_STATUSES,
+  SubcontractorSource,
   SubcontractorStatus,
   SubcontractorSummary,
   Trade,
   directoryProblemMessage,
+  sourceLabel,
   statusLabel,
 } from './subcontractors.api';
 
@@ -45,6 +48,11 @@ export class SubcontractorsList implements OnInit {
   search = '';
   status: SubcontractorStatus | '' = '';
   tradeId = '';
+  /** Phase 1 SI-100: region (typed) and source filters. */
+  region = '';
+  source: SubcontractorSource | '' = '';
+  readonly sources = SUBCONTRACTOR_SOURCES;
+  readonly sourceLabel = sourceLabel;
   sortBy: NonNullable<DirectoryListOptions['sortBy']> = 'LegalName';
   desc = false;
   page = 1;
@@ -102,11 +110,19 @@ export class SubcontractorsList implements OnInit {
     this.search = '';
     this.status = '';
     this.tradeId = '';
+    this.region = '';
+    this.source = '';
     this.applyFilters();
   }
 
   get hasFilters(): boolean {
-    return this.search.trim().length > 0 || this.status !== '' || this.tradeId !== '';
+    return (
+      this.search.trim().length > 0 ||
+      this.status !== '' ||
+      this.tradeId !== '' ||
+      this.region.trim().length > 0 ||
+      this.source !== ''
+    );
   }
 
   reload(): void {
@@ -130,6 +146,8 @@ export class SubcontractorsList implements OnInit {
         search: this.search,
         status: this.status ? [this.status] : [],
         tradeId: this.tradeId || null,
+        region: this.region,
+        source: this.source || null,
         page: this.page,
         pageSize: this.pageSize,
         sortBy: this.sortBy,

@@ -149,6 +149,13 @@ export const TENDER_STAGES: readonly TenderStage[] = [
 ];
 
 /** A deadline in the tender's own zone ("2026-10-15T14:00", "+03:00") next to the stored UTC instant. */
+/** Phase 1 SI-105: the optional pre-bid meeting or site visit, in the tender's time zone. */
+export interface TenderSiteVisit {
+  readonly at: TenderLocalTime;
+  readonly place: string;
+  readonly mandatory: boolean;
+}
+
 export interface TenderLocalTime {
   readonly utc: string;
   readonly local: string;
@@ -208,6 +215,12 @@ export interface TenderOrigin {
   readonly templateVersion: number | null;
   readonly clonedFromTenderId: string | null;
   readonly clonedFromReference: string | null;
+  /** Phase 1 D04 B (ADR-184): the tender closed without an award that this one tenders again, and why it closed. */
+  readonly retenderOfTenderId?: string | null;
+  readonly retenderOfReference?: string | null;
+  readonly retenderOfClosureReason?: string | null;
+  /** Firms whose award on that tender ended — flagged when invited, never refused. */
+  readonly awardEndedSubcontractorIds?: readonly string[] | null;
 }
 
 /** CF-084 (ADR-098): a company tender template and its versions, newest first. */
@@ -327,6 +340,9 @@ export interface TenderInvitation {
   readonly canCopyLink: boolean;
   /** An earlier version showed a user the firm's own link; it only views until replaced. */
   readonly firmLinkShown: boolean;
+  /** Phase 1 SI-105: the firm's recorded attendance at the visit (null: not recorded). */
+  readonly siteVisitAttended?: boolean | null;
+  readonly siteVisitRecordedByName?: string | null;
   /** CF-058 part 2 (ADR-103): a second contact of the firm with its own emailed link (never shown). */
   readonly secondRecipient?: {
     readonly contactId: string;
@@ -366,6 +382,10 @@ export interface TenderDetail {
   readonly technicalProposalRequired: boolean;
   /** CF-053 (ADR-090): bidders must state a proposed duration. */
   readonly durationRequired: boolean;
+  /** Phase 1 SI-127: bidders must state within how many days of award they mobilize. */
+  readonly mobilizationRequired?: boolean;
+  /** Phase 1 SI-105: the pre-bid meeting or site visit (null: none). */
+  readonly siteVisit?: TenderSiteVisit | null;
   /** CF-055 (ADR-092): the pricing basis, the requested terms, and whether the company requires a basis before publication. */
   readonly pricing: TenderPricing | null;
   readonly terms: TenderTerms | null;
@@ -423,6 +443,15 @@ export interface TenderDetail {
   /** CF-009: the award in force (its pages check their own permission) and the tender's stage. */
   readonly awardId?: string | null;
   readonly stage?: TenderStage;
+  /** Phase 1 D04 B (ADR-184): on a tender closed without an award, the re-tender that replaced it. */
+  readonly replacedByTenderId?: string | null;
+  readonly replacedByReference?: string | null;
+  /** Phase 1 SI-025 / SI-118 (ADR-184, P1-D16 B): the competition warning and the company's optional publication gates. */
+  readonly competitionShortfall?: boolean;
+  readonly minimumCompliantBids?: number;
+  readonly competitionJustificationRequired?: boolean;
+  readonly publicationCompetitionReason?: string | null;
+  readonly estimateMissingForPublication?: boolean;
 }
 
 export type TenderClosureKind = 'Deadline' | 'Early';
@@ -581,6 +610,14 @@ export interface TenderDraftInput {
   readonly bidValidityDays: number | null;
   readonly technicalProposalRequired: boolean;
   readonly durationRequired: boolean;
+  readonly mobilizationRequired?: boolean;
+  /** Phase 1 SI-105: sent together; no time and no place clears the visit. */
+  readonly siteVisitSet?: boolean;
+  readonly siteVisit?: {
+    readonly atLocal: string | null;
+    readonly place: string | null;
+    readonly mandatory: boolean;
+  } | null;
   /** CF-055: a pricing with no treatment, or terms asking nothing, clears them. */
   readonly pricing: {
     treatment: VatTreatment | null;
@@ -752,6 +789,11 @@ export class TenderingApi {
     });
   }
 
+  /** Phase 1 D04 B (ADR-184): "Start re-tender" from a tender closed without an award. */
+  startRetender(id: string): Observable<TenderDetail> {
+    return this.http.post<TenderDetail>(`${this.url(id)}/retender`, {});
+  }
+
   /** CF-057: a new draft for another work package with this tender's content (and, by default, its documents). */
   clone(id: string, workPackageId: string, includeDocuments: boolean): Observable<TenderDetail> {
     return this.http.post<TenderDetail>(`${this.url(id)}/clone`, {
@@ -897,8 +939,15 @@ export class TenderingApi {
     });
   }
 
-  publish(id: string, version: string): Observable<TenderDetail> {
-    return this.http.post<TenderDetail>(`${this.url(id)}/publish`, { version });
+  publish(
+    id: string,
+    version: string,
+    limitedCompetitionReason: string | null = null,
+  ): Observable<TenderDetail> {
+    return this.http.post<TenderDetail>(`${this.url(id)}/publish`, {
+      version,
+      limitedCompetitionReason,
+    });
   }
 
   cancel(id: string, reason: string, version: string): Observable<TenderDetail> {
@@ -925,6 +974,19 @@ export class TenderingApi {
 
   resend(id: string, invitationId: string, version: string): Observable<TenderDetail> {
     return this.http.post<TenderDetail>(`${this.invitation(id, invitationId)}/resend`, { version });
+  }
+
+  /** Phase 1 SI-105: records whether the firm attended the pre-bid meeting or site visit. */
+  recordSiteVisit(
+    id: string,
+    invitationId: string,
+    attended: boolean,
+    version: string,
+  ): Observable<TenderDetail> {
+    return this.http.post<TenderDetail>(`${this.invitation(id, invitationId)}/site-visit`, {
+      attended,
+      version,
+    });
   }
 
   remind(id: string, invitationId: string, version: string): Observable<TenderDetail> {
@@ -1137,6 +1199,128 @@ export class TenderingApi {
   private invitation(id: string, invitationId: string): string {
     return `${this.url(id)}/invitations/${encodeURIComponent(invitationId)}`;
   }
+}
+
+// ---------------------------------------------------------------- Phase 1 D02 (ADR-183): post-opening approvals
+
+export type PostOpeningAction =
+  'BidWithdrawal' | 'BidExclusion' | 'TenderCancellation' | 'RetenderClosure';
+export const POST_OPENING_ACTIONS: readonly PostOpeningAction[] = [
+  'BidWithdrawal',
+  'BidExclusion',
+  'TenderCancellation',
+  'RetenderClosure',
+];
+export type PostOpeningStatus = 'Pending' | 'Approved' | 'Rejected';
+
+export interface PostOpeningAct {
+  readonly action: PostOpeningAction;
+  /** The company's configured approver role; null: not configured, so the act cannot be requested. */
+  readonly approverRole: string | null;
+  readonly canRequest: boolean;
+}
+
+export interface PostOpeningRequest {
+  readonly id: string;
+  readonly action: PostOpeningAction;
+  readonly openingBidId: string | null;
+  readonly subcontractorCode: string | null;
+  readonly reason: string;
+  readonly evidenceReference: string;
+  readonly approverRole: string;
+  readonly requestedAtUtc: string;
+  readonly requestedByName: string;
+  readonly requestedByMe: boolean;
+  readonly status: PostOpeningStatus;
+  readonly decidedAtUtc: string | null;
+  readonly decidedByName: string | null;
+  readonly decisionComment: string | null;
+  readonly version: string;
+  readonly canDecide: boolean;
+  /** Why the caller may not decide a pending request: a problem code. */
+  readonly decideBlocker: string | null;
+}
+
+export interface PostOpeningWorkspace {
+  readonly tenderId: string;
+  readonly reference: string;
+  readonly title: string;
+  readonly bidsOpened: boolean;
+  readonly acts: readonly PostOpeningAct[];
+  readonly requests: readonly PostOpeningRequest[];
+}
+
+/** Phase 1 D02 (ADR-183): what each governed act is called. */
+export function postOpeningActionLabel(action: string): string {
+  switch (action) {
+    case 'BidWithdrawal':
+      return $localize`:@@postOpening.action.withdrawal:Withdrawal of a bid after opening`;
+    case 'BidExclusion':
+      return $localize`:@@postOpening.action.exclusion:Material exclusion of a bid`;
+    case 'TenderCancellation':
+      return $localize`:@@postOpening.action.cancellation:Cancellation of the tender`;
+    case 'RetenderClosure':
+      return $localize`:@@postOpening.action.retender:Closure for re-tender`;
+    default:
+      return action;
+  }
+}
+
+/** The server's limits for a post-opening request. */
+export const POST_OPENING_REASON_MIN = 3;
+export const POST_OPENING_REASON_MAX = 1000;
+export const POST_OPENING_TENDER_REASON_MAX = 500;
+export const POST_OPENING_EVIDENCE_MAX = 200;
+
+@Injectable({ providedIn: 'root' })
+export class PostOpeningApi {
+  private readonly http = inject(HttpClient);
+
+  get(tenderId: string): Observable<PostOpeningWorkspace> {
+    return this.http.get<PostOpeningWorkspace>(this.url(tenderId));
+  }
+
+  request(
+    tenderId: string,
+    action: PostOpeningAction,
+    openingBidId: string | null,
+    reason: string,
+    evidenceReference: string,
+    requestKey: string,
+  ): Observable<PostOpeningWorkspace> {
+    return this.http.post<PostOpeningWorkspace>(`${this.url(tenderId)}/requests`, {
+      action,
+      openingBidId,
+      reason,
+      evidenceReference,
+      requestKey,
+    });
+  }
+
+  decide(
+    tenderId: string,
+    request: PostOpeningRequest,
+    approve: boolean,
+    comment: string | null,
+  ): Observable<PostOpeningWorkspace> {
+    return this.http.post<PostOpeningWorkspace>(
+      `${this.url(tenderId)}/requests/${encodeURIComponent(request.id)}/decision`,
+      { approve, comment, version: request.version },
+    );
+  }
+
+  private url(tenderId: string): string {
+    return `/api/v1/tenders/${encodeURIComponent(tenderId)}/post-opening`;
+  }
+}
+
+/** Phase 1 SI-094 (ADR-184): the one rule for a tender that has ended (cancelled, or closed to tender its work package again). */
+export const TERMINAL_TENDER_STATUSES: readonly string[] = [
+  'Cancelled',
+  'ClosedWithoutActiveAward',
+];
+export function isTerminalTender(status: string | null | undefined): boolean {
+  return !!status && TERMINAL_TENDER_STATUSES.includes(status);
 }
 
 /** One resolution order for every tender screen: known code, then localized fallback. */

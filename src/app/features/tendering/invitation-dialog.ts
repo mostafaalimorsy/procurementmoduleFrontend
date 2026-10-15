@@ -315,6 +315,41 @@ export class InvitationDialog implements OnDestroy {
     setTimeout(() => this.document.getElementById(id)?.focus());
   }
 
+  /** Phase 1 SI-105: attendance is recorded on a published tender with a visit, until the bids are opened. */
+  readonly canRecordSiteVisit = computed(() => {
+    const tender = this.tender();
+    const invitation = this.invitation();
+    return (
+      this.canManage() &&
+      !!tender.siteVisit &&
+      tender.status === 'Published' &&
+      !tender.closure?.bidsOpenedAtUtc &&
+      !!invitation.issuedAtUtc &&
+      !invitation.revokedAtUtc
+    );
+  });
+
+  recordSiteVisit(attended: boolean): void {
+    if (this.busy()) return;
+    const tender = this.tender();
+    const invitation = this.invitation();
+    this.busy.set(true);
+    this.error.set('');
+    this.api.recordSiteVisit(tender.id, invitation.id, attended, invitation.version).subscribe({
+      next: (updated) => {
+        this.busy.set(false);
+        this.changed.emit(updated);
+        this.notice.set(
+          attended
+            ? $localize`:@@tenderInvitation.siteVisitAttended:Recorded as attending the site visit.`
+            : $localize`:@@tenderInvitation.siteVisitAbsent:Recorded as not attending the site visit.`,
+        );
+        this.focus(this.noticeId);
+      },
+      error: (error: unknown) => this.fail(error),
+    });
+  }
+
   private fail(error: unknown): void {
     this.busy.set(false);
     if (isStale(error)) {

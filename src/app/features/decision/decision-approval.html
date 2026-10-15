@@ -14,6 +14,30 @@
       <bdi>{{ current.submittedByName }}</bdi
       >.
     </p>
+    <!-- Phase 1 SI-036 (ADR-184, P1-D05 A): scorecards approvers should see labelled (they all count). -->
+    @if (view.labelledScorecards?.length) {
+      <div class="prj-note" role="note" data-testid="approval-labelled-scorecards">
+        <p i18n="@@approval.labelledIntro">
+          Technical scorecards that count but were given from off the named panel or by someone who
+          sees prices:
+        </p>
+        <ul>
+          @for (item of view.labelledScorecards; track $index) {
+            <li>
+              <bdi dir="ltr" class="tnd-code">{{ item.subcontractorCode }}</bdi> ·
+              <bdi>{{ item.evaluatorName }}</bdi
+              >:
+              @if (item.offPanel) {
+                <span class="prj-chip" i18n="@@evaluation.offPanel">not on the panel</span>
+              }
+              @if (item.priceAware) {
+                <span class="prj-chip" i18n="@@evaluation.priceAware">sees prices</span>
+              }
+            </li>
+          }
+        </ul>
+      </div>
+    }
 
     <dl class="dc-facts">
       <div>

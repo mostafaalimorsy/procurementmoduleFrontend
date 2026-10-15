@@ -672,11 +672,11 @@ describe('bid workspace', () => {
     const schedule = element.querySelector('#bid-schedule') as HTMLElement;
     expect(text(schedule)).toContain('Fixed by the buyer');
     expect(text(schedule)).toContain('120.125');
-    // 120.125 × 85.5 = 10 270.6875 is not a QAR amount: shown as such, never rounded.
+    // ADR-179: 120.125 × 85.5 = 10 270.6875 is rounded once to 10 270.69 (half away from zero); the rate stays as typed.
     page.setRate('A.1', '85.5');
     fixture.detectChanges();
-    expect(text(schedule)).toContain('Not an exact QAR amount — adjust the rate');
-    expect(page.scheduleTotal()).toBeNull();
+    expect(text(schedule)).toContain('10,270.69');
+    expect(text(schedule)).not.toContain('adjust the rate');
     page.setRate('A.1', '85.6');
     page.setRate('A.4', '150');
     page.setRate('A.3', '1.1234567');

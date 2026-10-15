@@ -262,36 +262,25 @@ describe('Bid opening', () => {
   });
 });
 
-describe('Withdrawal after opening (CF-049)', () => {
-  it('records a firm withdrawal with a reason and an evidence reference, and shows it on the register', () => {
+describe('Withdrawal after opening (CF-049, Phase 1 D02)', () => {
+  const requestLink = (element: HTMLElement) =>
+    Array.from(element.querySelectorAll('a')).find((a) =>
+      (a.textContent ?? '').includes('Request withdrawal or exclusion'),
+    );
+
+  it('asks for a withdrawal or exclusion on the post-opening approvals page, and shows a recorded withdrawal and an approved exclusion', () => {
     const http = configure(['Evaluation.View', 'Evaluation.Complete']);
     const page = TestBed.createComponent(EvaluationPage);
     page.detectChanges();
     const view = opened();
-    http.expectOne('/api/v1/tenders/t1/opening').flush(view);
-    http.expectOne('/api/v1/tenders/t1/evaluation').flush(overview());
-    page.detectChanges();
-    const element = page.nativeElement as HTMLElement;
-    const bid = view.opening!.bids[0];
-    button(element, 'The firm withdrew')!.click();
-    page.detectChanges();
-    const component = page.componentInstance;
-    component.withdrawalReason = 'Key staff left the firm';
-    component.withdrawalReference = 'Letter 2026/114';
-    component.recordWithdrawal(bid.id);
-    const request = http.expectOne(`/api/v1/tenders/t1/opening/bids/${bid.id}/withdrawal`);
-    expect(request.request.body).toMatchObject({
-      reason: 'Key staff left the firm',
-      evidenceReference: 'Letter 2026/114',
-    });
-    expect(typeof request.request.body.requestKey).toBe('string');
-    request.flush({
+    const [first] = view.opening!.bids;
+    http.expectOne('/api/v1/tenders/t1/opening').flush({
       ...view,
       opening: {
         ...view.opening!,
         bids: [
           {
-            ...bid,
+            ...first,
             withdrawal: {
               stage: 'AfterOpening',
               recordedAtUtc: '2026-10-08T10:00:00Z',
@@ -301,13 +290,52 @@ describe('Withdrawal after opening (CF-049)', () => {
               evidenceReference: 'Letter 2026/114',
             },
           },
-          ...view.opening!.bids.slice(1),
+          {
+            ...first,
+            id: 'b2',
+            position: 2,
+            subcontractorCode: 'BETA-01',
+            excluded: {
+              excludedAtUtc: '2026-10-09T10:00:00Z',
+              requestedByName: 'Maha Manager',
+              approvedByName: 'Dina Director',
+              requestId: 'r1',
+            },
+          },
+          { ...first, id: 'b3', position: 3, subcontractorCode: 'GAMA-01' },
         ],
       },
     });
+    http.expectOne('/api/v1/tenders/t1/evaluation').flush(overview());
     page.detectChanges();
+    const element = page.nativeElement as HTMLElement;
     expect(text(element)).toContain('Withdrawn by the firm — recorded by Maha Manager');
     expect(text(element)).toContain('Letter 2026/114');
+    expect(text(element)).toContain(
+      'Excluded after opening — requested by Maha Manager, approved by Dina Director',
+    );
+    // Nothing is recorded from this page: the act is requested for approval.
+    const links = Array.from(element.querySelectorAll('a')).filter((item) =>
+      (item.textContent ?? '').includes('Request withdrawal or exclusion'),
+    );
+    expect(links.length).toBe(1);
+    expect(links[0].getAttribute('href')).toContain('/tenders/t1/post-opening');
+    expect(links[0].getAttribute('href')).toContain('act=BidWithdrawal');
+    expect(links[0].getAttribute('href')).toContain('bid=b3');
+    expect(button(element, 'The firm withdrew')).toBeUndefined();
+  });
+
+  it('offers no withdrawal action once the tender is awarded or closed (ADR-100: until the award)', () => {
+    for (const ended of [{ tenderAwarded: true }, { tenderCancelled: true }]) {
+      const http = configure(['Evaluation.View', 'Evaluation.Complete', 'Decision.Prepare']);
+      const page = TestBed.createComponent(EvaluationPage);
+      page.detectChanges();
+      http.expectOne('/api/v1/tenders/t1/opening').flush(opened());
+      http.expectOne('/api/v1/tenders/t1/evaluation').flush(overview(ended));
+      page.detectChanges();
+      expect(requestLink(page.nativeElement as HTMLElement)).toBeUndefined();
+      TestBed.resetTestingModule();
+    }
   });
 
   it('offers no withdrawal action to a reader who prepares neither the evaluation nor the decision', () => {
@@ -317,7 +345,7 @@ describe('Withdrawal after opening (CF-049)', () => {
     http.expectOne('/api/v1/tenders/t1/opening').flush(opened());
     http.expectOne('/api/v1/tenders/t1/evaluation').flush(overview());
     page.detectChanges();
-    expect(button(page.nativeElement as HTMLElement, 'The firm withdrew')).toBeUndefined();
+    expect(requestLink(page.nativeElement as HTMLElement)).toBeUndefined();
   });
 });
 

@@ -14,6 +14,11 @@ export function inFlightLabel(key: string): string {
       return $localize`:@@inFlight.approvedNotAwarded:Approved decisions not yet awarded`;
     case 'closeouts_in_progress':
       return $localize`:@@inFlight.closeouts:Closeouts being recorded`;
+    // Phase 1 SI-073: finished evidence the removal hides until the feature is restored.
+    case 'awards_issued':
+      return $localize`:@@inFlight.awardsIssued:Issued awards (hidden while award is removed)`;
+    case 'closeouts_finalized':
+      return $localize`:@@inFlight.closeoutsFinalized:Finalized closeouts (hidden while performance is removed)`;
     default:
       return key;
   }

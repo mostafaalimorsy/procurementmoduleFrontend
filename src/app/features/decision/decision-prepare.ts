@@ -128,12 +128,18 @@ export class DecisionPrepare {
   readonly previousAwardees = computed(() => previousAwardeeCodes(this.workspace()));
   /** The first rank as the server judges it (ADR-172): over the eligible bids, leaving previous awardees out. */
   readonly topRanked = computed(() => topRankedIds(this.workspace()));
+  /**
+   * Phase 1 SI-006 (ADR-184): bids that rank first only because a bid ranked above them was withdrawn or excluded after opening — proposing
+   * one counts as an override.
+   */
+  readonly outranked = computed(() => new Set<string>(this.workspace().outrankedByRemoved ?? []));
   /** Without the override right, only a firm ranked first may be proposed; previous awardees are listed, disabled. */
   readonly choices = computed(() =>
     this.eligible().filter(
       (candidate) =>
         this.workspace().access.override ||
-        this.topRanked().has(candidate.openingBidId) ||
+        (this.topRanked().has(candidate.openingBidId) &&
+          !this.outranked().has(candidate.openingBidId)) ||
         this.isPreviousAwardee(candidate),
     ),
   );
@@ -166,7 +172,20 @@ export class DecisionPrepare {
   /** ADR-172: an override is a proposed bid that is not the top-ranked eligible bid once previous awardees are left out. */
   readonly isOverride = computed(() => {
     const candidate = this.proposed();
-    return !!candidate && !this.topRanked().has(candidate.openingBidId);
+    return (
+      !!candidate &&
+      (!this.topRanked().has(candidate.openingBidId) ||
+        this.outranked().has(candidate.openingBidId))
+    );
+  });
+  /** Phase 1 SI-006: the override arises only because a bid ranked above was withdrawn or excluded after opening. */
+  readonly outrankedOverride = computed(() => {
+    const candidate = this.proposed();
+    return (
+      !!candidate &&
+      this.topRanked().has(candidate.openingBidId) &&
+      this.outranked().has(candidate.openingBidId)
+    );
   });
   readonly decimals = computed(() => decimalsOf(this.proposed()?.leveledTotal ?? null));
   readonly currency = computed(() => this.recommendation()?.currency ?? this.workspace().currency);

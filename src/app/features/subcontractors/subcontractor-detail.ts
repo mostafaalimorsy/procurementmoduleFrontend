@@ -25,6 +25,7 @@ import {
   SubcontractorEngagements,
   SubcontractorStatus,
   directoryProblemMessage,
+  sourceLabel,
   statusLabel,
 } from './subcontractors.api';
 
@@ -228,6 +229,8 @@ export class SubcontractorDetailPage implements OnInit {
         },
       });
   }
+
+  readonly sourceLabel = sourceLabel;
 
   location(subcontractor: SubcontractorDetail): string {
     return placeName(subcontractor.city, subcontractor.countryCode);

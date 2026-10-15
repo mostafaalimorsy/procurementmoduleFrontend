@@ -55,6 +55,21 @@ export interface RetrospectiveCommercial {
   readonly updatedByName: string | null;
 }
 
+/** Phase 1 SI-020: where a past outcome's ratings come from; "not recorded" ratings are absent, never zero. */
+export type RatingsBasis = 'Documents' | 'Recollection' | 'NotRecorded';
+export const RATINGS_BASES: readonly RatingsBasis[] = ['Documents', 'Recollection', 'NotRecorded'];
+
+export function ratingsBasisLabel(basis: RatingsBasis | string | null | undefined): string {
+  switch (basis) {
+    case 'Recollection':
+      return $localize`:@@retrospective.basisRecollection:Ratings by recollection`;
+    case 'NotRecorded':
+      return $localize`:@@retrospective.basisNotRecorded:Ratings not recorded`;
+    default:
+      return $localize`:@@retrospective.basisDocuments:Ratings from documents`;
+  }
+}
+
 export interface RetrospectiveExecution {
   readonly plannedDurationDays: number | null;
   readonly actualStartDate: string | null;
@@ -68,6 +83,7 @@ export interface RetrospectiveExecution {
   readonly sectionVersion: string | null;
   readonly updatedAtUtc: string | null;
   readonly updatedByName: string | null;
+  readonly ratingsBasis?: RatingsBasis | null;
 }
 
 export interface RetrospectiveVersion {
@@ -83,13 +99,15 @@ export interface RetrospectiveVersion {
   readonly costVariancePercent: string | null;
   readonly actualDurationDays: number;
   readonly scheduleVariancePercent: string | null;
-  readonly qualityRating: number;
-  readonly hseRating: number;
-  readonly wouldWorkAgain: WouldWorkAgain;
+  /** Phase 1 SI-020: null when the ratings were not recorded. */
+  readonly qualityRating: number | null;
+  readonly hseRating: number | null;
+  readonly wouldWorkAgain: WouldWorkAgain | null;
   readonly outcomeType: CloseoutOutcomeType;
   readonly correctionReason: string | null;
   readonly sha256: string;
   readonly fingerprintVerified: boolean;
+  readonly ratingsBasis?: RatingsBasis;
 }
 
 export interface RetrospectiveEvent {
@@ -131,6 +149,8 @@ export interface RetrospectiveOutcome {
     readonly correct: boolean;
   };
   readonly commercialVisible: boolean;
+  /** Phase 1 SI-020: the checked import file the record came from (its records can be confirmed together). */
+  readonly sourceFileSha256?: string | null;
 }
 
 export interface RetrospectiveImportIssue {
@@ -158,12 +178,24 @@ export interface RetrospectiveImportPreview {
   readonly fileIssues: readonly RetrospectiveImportIssue[];
   readonly items: readonly RetrospectiveImportRow[];
   readonly canConfirm: boolean;
+  /** Phase 1 SI-020: the valid rows can be imported while the refused ones are reported. */
+  readonly canConfirmValidRows?: boolean;
 }
 
 export interface RetrospectiveImportResult {
   readonly sha256: string;
   readonly created: number;
   readonly duplicates: number;
+  readonly refused?: number;
+}
+
+/** Phase 1 SI-020: one attestation confirming a checked file's complete records. */
+export interface RetrospectiveFileConfirmation {
+  readonly sha256: string;
+  readonly confirmed: number;
+  readonly incomplete: number;
+  readonly recordedByYou: number;
+  readonly alreadyConfirmed: number;
 }
 
 export interface RetrospectiveCommercialDraft {
@@ -183,6 +215,7 @@ export interface RetrospectiveExecutionDraft {
   wouldWorkAgainRationale: string;
   outcomeType: CloseoutOutcomeType | '';
   percentComplete: number | null;
+  ratingsBasis: RatingsBasis;
 }
 
 export function retrospectiveCommercialDraft(
@@ -209,6 +242,7 @@ export function retrospectiveExecutionDraft(
     wouldWorkAgainRationale: execution.wouldWorkAgainRationale ?? '',
     outcomeType: execution.outcomeType ?? '',
     percentComplete: execution.percentComplete,
+    ratingsBasis: execution.ratingsBasis ?? 'Documents',
   };
 }
 
@@ -275,10 +309,13 @@ export class RetrospectiveApi {
       plannedDurationDays: whole(draft.plannedDurationDays),
       actualStartDate: draft.actualStartDate || null,
       actualCompletionDate: draft.actualCompletionDate || null,
-      qualityRating: whole(draft.qualityRating),
-      hseRating: whole(draft.hseRating),
-      wouldWorkAgain: draft.wouldWorkAgain || null,
-      wouldWorkAgainRationale: text(draft.wouldWorkAgainRationale),
+      // Phase 1 SI-020: "not recorded" sends no rating at all.
+      qualityRating: draft.ratingsBasis === 'NotRecorded' ? null : whole(draft.qualityRating),
+      hseRating: draft.ratingsBasis === 'NotRecorded' ? null : whole(draft.hseRating),
+      wouldWorkAgain: draft.ratingsBasis === 'NotRecorded' ? null : draft.wouldWorkAgain || null,
+      wouldWorkAgainRationale:
+        draft.ratingsBasis === 'NotRecorded' ? null : text(draft.wouldWorkAgainRationale),
+      ratingsBasis: draft.ratingsBasis,
       outcomeType: draft.outcomeType || null,
       percentComplete:
         draft.outcomeType && draft.outcomeType !== 'Completed'
@@ -314,11 +351,25 @@ export class RetrospectiveApi {
     return this.http.post<RetrospectiveImportPreview>(`${this.base}/import/preview`, form);
   }
 
-  confirmImport(file: File, sha256: string): Observable<RetrospectiveImportResult> {
+  /** Phase 1 SI-020: `validRowsOnly` imports the valid rows and reports the refused ones. */
+  confirmImport(
+    file: File,
+    sha256: string,
+    validRowsOnly = false,
+  ): Observable<RetrospectiveImportResult> {
     const form = new FormData();
     form.append('file', file, file.name);
     form.append('sha256', sha256);
+    if (validRowsOnly) form.append('mode', 'valid_rows');
     return this.http.post<RetrospectiveImportResult>(`${this.base}/import/confirm`, form);
+  }
+
+  /** Phase 1 SI-020: confirms every complete record of a checked file with one attestation. */
+  confirmFile(sha256: string, requestKey: string): Observable<RetrospectiveFileConfirmation> {
+    return this.http.post<RetrospectiveFileConfirmation>(
+      `${this.base}/import/${encodeURIComponent(sha256)}/confirm-records`,
+      { attested: true, requestKey },
+    );
   }
 
   templateUrl(): string {

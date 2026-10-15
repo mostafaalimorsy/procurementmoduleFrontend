@@ -32,6 +32,14 @@ export const PREDEFINED_ROLES = PREDEFINED_TENANT_ROLES;
 export type PredefinedRole = PredefinedTenantRole;
 export type TenantUserStatus = 'Invited' | 'Active' | 'Suspended';
 
+/** Phase 1 SI-081: one thing a member is still named for (a project, a panel, a pending decision, an acting role). */
+export interface MemberResponsibility {
+  readonly kind: string;
+  readonly recordId: string;
+  readonly reference: string;
+  readonly title: string | null;
+}
+
 export interface TenantUser {
   readonly id: string;
   readonly email: string;
@@ -51,7 +59,7 @@ export interface TenantUser {
   readonly mfaEnrolled?: boolean;
 }
 
-/** CF-065 (ADR-145): the roles that sign in with an authenticator (the Company Admin always does). */
+/** CF-065 (ADR-145): the roles that sign in with an authenticator (the Company Admin, Procurement Manager and Approver / Director always do — Phase 2 SI-088). */
 /** Red-team B-115-2: the email domains and the named addresses a company may invite and sign in with. */
 export interface CompanyAllowList {
   readonly domains: readonly string[];
@@ -86,6 +94,13 @@ export interface CompanyPlan {
   readonly quotas: readonly QuotaState[];
   /** CF-105: the platform's capabilities this plan does not include. */
   readonly notIncluded?: readonly string[];
+  /** Phase 1 SI-137: the commercial footing the operator recorded (read-only; never controls anything). */
+  readonly commercial?: {
+    readonly mode: 'Pilot' | 'PaidPilot' | 'Subscribed' | string;
+    readonly startsOn: string;
+    readonly endsOn: string | null;
+    readonly reference: string | null;
+  } | null;
 }
 
 export interface InviteTenantUser {
@@ -100,6 +115,13 @@ export class TenantIdentityApi {
 
   listUsers(): Observable<TenantUser[]> {
     return this.http.get<TenantUser[]>('/api/v1/admin/users');
+  }
+
+  /** Phase 1 SI-081 (ADR-184): what the member is still named for, before a suspension. */
+  responsibilities(userId: string): Observable<MemberResponsibility[]> {
+    return this.http.get<MemberResponsibility[]>(
+      `/api/v1/admin/users/${encodeURIComponent(userId)}/responsibilities`,
+    );
   }
 
   inviteUser(request: InviteTenantUser): Observable<TenantUser> {

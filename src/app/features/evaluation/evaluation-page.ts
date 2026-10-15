@@ -357,52 +357,21 @@ export class EvaluationPage implements OnInit {
 
   // ---------------------------------------------------------------- CF-049 (ADR-100): withdrawal after opening
 
-  /** Who prepares the evaluation or the decision records a firm's withdrawal, until the award. */
+  /**
+   * Who prepares the evaluation or the decision asks for a firm's withdrawal or a material exclusion, until the award; Phase 1 D02 (ADR-183):
+   * on the post-opening approvals page, where the company's configured approver decides it.
+   */
   canRecordWithdrawal(): boolean {
     const item = this.opening();
     return (
       !!item?.opening &&
       item.status !== 'Cancelled' &&
+      // As the server: not once the tender is awarded, cancelled or closed for re-tender.
+      !this.overview()?.tenderAwarded &&
+      !this.overview()?.tenderCancelled &&
       (this.session.hasPermission('Evaluation.Complete') ||
         this.session.hasPermission('Decision.Prepare'))
     );
-  }
-
-  readonly withdrawingBid = signal<string | null>(null);
-  withdrawalReason = '';
-  withdrawalReference = '';
-  private withdrawalKey = requestKey();
-
-  askWithdrawal(bidId: string): void {
-    this.withdrawalReason = '';
-    this.withdrawalReference = '';
-    this.withdrawalKey = requestKey();
-    this.withdrawingBid.set(bidId);
-  }
-
-  recordWithdrawal(bidId: string): void {
-    const reason = this.withdrawalReason.trim();
-    const reference = this.withdrawalReference.trim();
-    if (this.busy() || reason.length < 3 || !reference) return;
-    this.busy.set(true);
-    this.error.set('');
-    this.api
-      .recordWithdrawal(this.tenderId(), bidId, reason, reference, this.withdrawalKey)
-      .subscribe({
-        next: (opening) => {
-          this.busy.set(false);
-          this.withdrawingBid.set(null);
-          this.opening.set(opening);
-          this.announce(
-            $localize`:@@evaluation.withdrawalRecorded:Withdrawal recorded. Recompute the recommendation before deciding.`,
-          );
-        },
-        error: (error: unknown) => {
-          this.busy.set(false);
-          if (isStale(error)) this.load(this.staleText());
-          else this.error.set(evaluationProblemMessage(error));
-        },
-      });
   }
 
   /** CF-043 (ADR-106): names the chosen member to the evaluation panel. */

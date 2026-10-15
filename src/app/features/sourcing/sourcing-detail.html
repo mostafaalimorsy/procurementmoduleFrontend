@@ -763,6 +763,20 @@
               The shortlisted subcontractors are approved to proceed to tendering. The shortlist
               then cannot change unless it is reopened, and this approval is kept in the history.
             </p>
+            <!-- Phase 1 SI-025 (ADR-184, P1-D16 B): competition is judged before prices are known. -->
+            @if (sourcing()?.competitionShortfall) {
+              <p
+                class="prj-note"
+                role="note"
+                data-testid="shortlist-competition-warning"
+                i18n="@@sourcing.competitionShortfall"
+              >
+                Fewer firms are shortlisted than your company's competition minimum ({{
+                  sourcing()?.minimumCompliantBids
+                }}). Unless more are added, the decision will need a limited-competition
+                justification.
+              </p>
+            }
             <ul class="src-members" role="list">
               @for (candidate of active(); track candidate.id) {
                 @if (candidate.isShortlisted) {

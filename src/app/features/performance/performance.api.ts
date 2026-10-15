@@ -30,7 +30,7 @@ export type WouldWorkAgain = 'Yes' | 'Conditional' | 'No';
 export type VariationCause =
   'ClientChange' | 'DesignChange' | 'ScopeGap' | 'SiteCondition' | 'Other';
 export type ScheduleOutcome = 'WithinDuration' | 'Late' | 'NoBaseline';
-export type CloseoutEventKind = 'Started' | 'Finalized' | 'Reopened';
+export type CloseoutEventKind = 'Started' | 'Finalized' | 'Reopened' | 'Acknowledged';
 /** CF-048 (ADR-124): how the subcontract ended; only Completed compares cost and time with the award. */
 export type CloseoutOutcomeType =
   | 'Completed'
@@ -100,6 +100,13 @@ export interface CloseoutBaseline {
   readonly awardedAtUtc: string;
   readonly baselineSha256: string;
   readonly baselineVerified: boolean;
+  /**
+   * Phase 1 SI-127: the frozen mobilization commitment in days from award, the date it implies, and the actual start against it (days
+   * after that date; negative = earlier). A comparison only.
+   */
+  readonly mobilizationDays?: number | null;
+  readonly mobilizationDueDate?: string | null;
+  readonly mobilizationVarianceDays?: number | null;
 }
 
 export interface CommercialOutcome {
@@ -237,6 +244,15 @@ export interface CloseoutWorkspace {
   /** CF-082: what finalizing now needs confirmed; whether the recorded works started or finished before the award. */
   readonly timingWarnings?: readonly TimingWarning[];
   readonly startsBeforeAward?: boolean;
+  /**
+   * Phase 1 SI-063: a negative outcome finalized outside procurement leadership counts as history only once a procurement leader
+   * acknowledges it; who acknowledged it, and whether the reader may acknowledge it now.
+   */
+  readonly negativeOutcome?: boolean;
+  readonly acknowledgementPending?: boolean;
+  readonly acknowledgedAtUtc?: string | null;
+  readonly acknowledgedByName?: string | null;
+  readonly canAcknowledge?: boolean;
 }
 
 export interface CloseoutListItem {
@@ -551,6 +567,20 @@ export class PerformanceApi {
       version,
       reason: reason.trim(),
       confirmed: true,
+      requestKey,
+    });
+  }
+
+  /** Phase 1 SI-063: procurement leadership acknowledges a negative outcome (an optional comment). */
+  acknowledge(
+    awardId: string,
+    version: string,
+    comment: string,
+    requestKey: string,
+  ): Observable<CloseoutWorkspace> {
+    return this.http.post<CloseoutWorkspace>(`${this.path(awardId)}/acknowledge`, {
+      version,
+      comment: comment.trim() || null,
       requestKey,
     });
   }

@@ -58,12 +58,17 @@ describe('money on the client', () => {
     expect(sumAmounts(['1', '2'], 0)).toBe('3');
   });
 
-  it('extends quantity × rate exactly on the currency minor units and never rounds (CF-004)', () => {
+  it('rounds each line once to the currency minor units, half away from zero (ADR-179, Phase 1 D01)', () => {
     expect(extension('120.125', '85.6', 2)).toEqual({ amount: '10282.70', problem: null });
-    // 120.125 × 85.5 = 10 270.6875: not a two-decimal amount, refused rather than rounded.
-    expect(extension('120.125', '85.5', 2)).toEqual({ amount: null, problem: 'inexact' });
+    // 120.125 × 85.5 = 10 270.6875 → 10 270.69 (before ADR-179: refused as inexact).
+    expect(extension('120.125', '85.5', 2)).toEqual({ amount: '10270.69', problem: null });
     expect(extension('120.125', '85.5', 4)).toEqual({ amount: '10270.6875', problem: null });
-    expect(extension('3', '0.333333', 0)).toEqual({ amount: null, problem: 'inexact' });
+    expect(extension('412.35', '8.47', 2)).toEqual({ amount: '3492.60', problem: null });
+    expect(extension('12.125', '155.255', 3)).toEqual({ amount: '1882.467', problem: null });
+    // Half away from zero, never the banker's rule: 0.125 → 0.13, 1.5 → 2.
+    expect(extension('0.5', '0.25', 2)).toEqual({ amount: '0.13', problem: null });
+    expect(extension('3', '0.5', 0)).toEqual({ amount: '2', problem: null });
+    expect(extension('3', '0.333333', 0)).toEqual({ amount: '1', problem: null });
     expect(extension('130', '80.000000', 2)).toEqual({ amount: '10400.00', problem: null });
     // The largest amount is exactly reachable; one more unit of quantity crosses the money maximum.
     expect(extension('1000', '999999999.999', 3)).toEqual({
@@ -71,8 +76,13 @@ describe('money on the client', () => {
       problem: null,
     });
     expect(extension('1001', '999999999.999', 3)).toEqual({ amount: null, problem: 'range' });
-    expect(extension('999.999', '999999999.999', 3)).toEqual({ amount: null, problem: 'inexact' });
+    expect(extension('999.999', '999999999.999', 3)).toEqual({
+      amount: '999998999999.000',
+      problem: null,
+    });
     expect(extension('0', '5', 2)).toEqual({ amount: '0.00', problem: null });
+    // Not a canonical quantity or rate: not priced yet, no amount and no problem of its own.
+    expect(extension('1.0001', '5', 2)).toEqual({ amount: null, problem: null });
     expect(trimDecimal('85.600000', 2)).toBe('85.60');
     expect(trimDecimal('120.125')).toBe('120.125');
     expect(trimDecimal('40.000')).toBe('40');

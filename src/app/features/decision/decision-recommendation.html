@@ -299,7 +299,7 @@
               @for (flag of candidate.flags; track flag) {
                 <li class="ev-flag ev-flag--info">
                   <span class="ev-flag__mark" aria-hidden="true">i</span>
-                  {{ flagLabel(flag) }}
+                  {{ flagLabel(flag, candidate.retrospectiveProjects ?? 0) }}
                 </li>
               }
             </ul>

@@ -172,6 +172,42 @@ export const routes: Routes = [
         title: $localize`:@@title.search:Search | ${product}:product:`,
         loadComponent: () => import('./features/search/search-page').then((m) => m.SearchPage),
       },
+      // Phase 1 SI-068 (ADR-184): the procurement exceptions register (the server decides who reads it).
+      {
+        path: 'exceptions',
+        canActivate: [permissionGuard],
+        data: { permission: 'session.read' },
+        title: $localize`:@@title.exceptions:Procurement exceptions | ${product}:product:`,
+        loadComponent: () =>
+          import('./features/audit/exceptions-page').then((m) => m.ExceptionsPage),
+      },
+      // Phase 1 SI-124 (ADR-184): emergency direct awards (values are commercial: decision readers).
+      {
+        path: 'direct-awards',
+        canActivate: [permissionGuard],
+        data: { permission: 'Decision.View' },
+        title: $localize`:@@title.directAwards:Direct awards | ${product}:product:`,
+        loadComponent: () =>
+          import('./features/decision/direct-awards-page').then((m) => m.DirectAwardsPage),
+      },
+      // Phase 2 SI-089 (ADR-185): the member's own account security (password, recovery codes).
+      {
+        path: 'account/security',
+        canActivate: [permissionGuard],
+        data: { permission: 'session.read' },
+        title: $localize`:@@title.accountSecurity:Account security | ${product}:product:`,
+        loadComponent: () =>
+          import('./features/identity/account-security').then((m) => m.AccountSecurityPage),
+      },
+      // Phase 1 SI-017 (ADR-184): the governance settings in force, for every member.
+      {
+        path: 'governance',
+        canActivate: [permissionGuard],
+        data: { permission: 'session.read' },
+        title: $localize`:@@title.governance:Procurement governance | ${product}:product:`,
+        loadComponent: () =>
+          import('./features/company/governance-page').then((m) => m.GovernancePage),
+      },
       // CF-080 (ADR-131): the read-only pilot metrics.
       {
         path: 'pilot-metrics',
@@ -283,6 +319,15 @@ export const routes: Routes = [
           import('./features/subcontractors/compliance-types').then((m) => m.ComplianceTypesPage),
       },
       {
+        // Phase 1 SI-023: status, approved-vendor and compliance-document rows.
+        path: 'subcontractors/standing-import',
+        canActivate: [featureGuard],
+        data: { permission: DIRECTORY_PERMISSIONS.import, feature: DIRECTORY_FEATURE },
+        title: $localize`:@@title.standingImport:Import status and approved vendors | ${product}:product:`,
+        loadComponent: () =>
+          import('./features/subcontractors/standing-import').then((m) => m.StandingImportPage),
+      },
+      {
         path: 'subcontractors/import',
         canActivate: [featureGuard],
         data: { permission: DIRECTORY_PERMISSIONS.import, feature: DIRECTORY_FEATURE },
@@ -348,6 +393,15 @@ export const routes: Routes = [
         data: { permission: TENDER_PERMISSIONS.view, feature: TENDERING_FEATURES },
         title: $localize`:@@title.tender:Tender | ${product}:product:`,
         loadComponent: () => import('./features/tendering/tender-page').then((m) => m.TenderPage),
+      },
+      {
+        // Phase 1 D02 (ADR-183): post-opening acts are requested and approved here.
+        path: 'tenders/:id/post-opening',
+        canActivate: [featureGuard],
+        data: { permission: TENDER_PERMISSIONS.view, feature: TENDERING_FEATURES },
+        title: $localize`:@@title.postOpening:Post-opening approvals | ${product}:product:`,
+        loadComponent: () =>
+          import('./features/tendering/post-opening-page').then((m) => m.PostOpeningPage),
       },
       {
         path: 'tenders/:id/evaluation',

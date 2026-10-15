@@ -206,7 +206,12 @@ describe('Award outcome (CF-046)', () => {
     page.detectChanges();
     expect(text(element)).toContain('Declined by the subcontractor');
     expect(text(element)).toContain('only through a new decision and its approvals');
-    expect(button(element, 'Close the tender to re-tender')).toBeDefined();
+    // Phase 1 D02 (ADR-183): the closure is requested for approval on the post-opening page.
+    const retender = Array.from(element.querySelectorAll('a')).find((item) =>
+      (item.textContent ?? '').includes('Request closure for re-tender'),
+    );
+    expect(retender?.getAttribute('href')).toContain('post-opening');
+    expect(retender?.getAttribute('href')).toContain('act=RetenderClosure');
     expect(button(element, 'Record acceptance')).toBeUndefined();
   });
 });

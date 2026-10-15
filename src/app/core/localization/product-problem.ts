@@ -297,7 +297,7 @@ const MESSAGES: Record<string, (p: Parameters | undefined) => string> = {
   'decision.not_approved': () =>
     $localize`:@@problem.decisionNotApproved:The decision is not fully approved, so the award cannot be issued yet.`,
   'decision.self_approval_not_allowed': () =>
-    $localize`:@@problem.decisionSelfApproval:You submitted this decision (or already approved a step of it). Another approver must act on it.`,
+    $localize`:@@problem.decisionSelfApproval:You prepared or submitted this decision (or already approved a step of it). Another approver must act on it.`,
   'decision.withdraw_submitter_only': () =>
     $localize`:@@problem.decisionWithdrawSubmitterOnly:Only the person who submitted this decision, or an approval-matrix manager, can withdraw it.`,
   'decision.approver_role_required': (p) =>
@@ -442,8 +442,16 @@ const MESSAGES: Record<string, (p: Parameters | undefined) => string> = {
     $localize`:@@problem.retrospectiveValueInvalid:This value cannot be read. Check the template's format.`,
   'retrospective.import_rows_invalid': () =>
     $localize`:@@problem.retrospectiveRowsInvalid:Correct the refused rows and check the file again. Nothing was imported.`,
+  'performance.finalize_leadership_only': () =>
+    $localize`:@@problem.performanceFinalizeLeadershipOnly:Only the project’s assigned Project Manager or procurement leadership can finalize this closeout.`,
+  'performance.acknowledgement_not_pending': () =>
+    $localize`:@@problem.performanceAcknowledgementNotPending:This closeout is not waiting for an acknowledgement. Reload to see its current state.`,
+  'performance.acknowledge_own_finalization': () =>
+    $localize`:@@problem.performanceAcknowledgeOwnFinalization:You finalized this closeout, so another procurement leader must acknowledge it.`,
   'performance.not_assigned_manager': () =>
     $localize`:@@problem.performanceNotAssignedManager:This project has another assigned Project Manager. Confirm that you are finalizing the closeout on their behalf.`,
+  'performance.execution_clear_not_assigned': () =>
+    $localize`:@@problem.performanceExecutionClearNotAssigned:Only the project's assigned Project Manager or procurement leadership can clear what was recorded. Add or correct values instead.`,
   'recommendation.history_not_in_plan': () =>
     $localize`:@@problem.recommendationHistoryNotInPlan:Past performance is not in your plan, so a recommendation policy cannot weigh it. Remove that criterion.`,
   'negotiation.field_out_of_scope': (p) =>
@@ -532,6 +540,10 @@ const MESSAGES: Record<string, (p: Parameters | undefined) => string> = {
     $localize`:@@problem.contactInOpenInvitation:This contact receives an open tender's invitation. Change the invitation's recipient first, then erase the contact.`,
   'outside_bid.sealed': () =>
     $localize`:@@problem.outsideBidSealed:This bid is confirmed and sealed until the bid opening.`,
+  'auth.step_up_code_invalid': () =>
+    $localize`:@@problem.stepUpCodeInvalid:Enter the current code from your authenticator app. Each code works once.`,
+  'auth.step_up_mfa_required': () =>
+    $localize`:@@problem.stepUpMfaRequired:Set up an authenticator app at your next sign-in, then confirm this again.`,
   'mfa.attempts_exhausted': () =>
     $localize`:@@problem.mfaExhausted:Too many codes were not accepted. Wait 15 minutes, then sign in again.`,
   'server.error': () =>
@@ -548,6 +560,10 @@ const MESSAGES: Record<string, (p: Parameters | undefined) => string> = {
     $localize`:@@problem.deliveryUnavailable:Email delivery is unavailable. Try again later.`,
   'password.length': () =>
     $localize`:@@problem.passwordLength:Use a password of 12 to 128 characters.`,
+  'password.current_invalid': () =>
+    $localize`:@@problem.passwordCurrentInvalid:The current password is not correct.`,
+  'password.unchanged': () =>
+    $localize`:@@problem.passwordUnchanged:Choose a password different from the current one.`,
   'user.reactivate_requires_suspended': () =>
     $localize`:@@problem.userReactivate:Only suspended users can be reactivated.`,
   'user.suspend_requires_active': () =>
@@ -597,6 +613,14 @@ const MESSAGES: Record<string, (p: Parameters | undefined) => string> = {
     $localize`:@@problem.featureNotSellable:This capability is reserved and cannot be sold yet.`,
   'platform.feature_requires_limit': (p) =>
     $localize`:@@problem.featureRequiresLimit:${featureLabel(text(p, 'feature'))}:feature: requires a ${quotaLabel(text(p, 'limit'))}:limit: limit of at least ${text(p, 'minimum')}:minimum:.`,
+  'import.unknown_subcontractor': () =>
+    $localize`:@@problem.importUnknownSubcontractor:No firm in the directory has this code.`,
+  'import.value_invalid': () =>
+    $localize`:@@problem.importValueInvalid:This value is missing or not one the field takes.`,
+  'import.action_not_permitted': () =>
+    $localize`:@@problem.importActionNotPermitted:Your role cannot make this change; someone who can must import it.`,
+  'directory.field_invalid': (p) =>
+    $localize`:@@problem.directoryFieldInvalid:${directoryFieldLabel(text(p, 'field'))}:field: is not valid. Check the value and try again.`,
   'directory.field_required': (p) =>
     $localize`:@@problem.directoryFieldRequired:${directoryFieldLabel(text(p, 'field'))}:field: is required.`,
   'directory.field_too_long': (p) =>
@@ -784,6 +808,26 @@ const MESSAGES: Record<string, (p: Parameters | undefined) => string> = {
     $localize`:@@problem.tenderDeadlinePassed:The submission deadline has passed. Invitations can no longer be sent or changed.`,
   'tender.deadline_too_soon': (p) =>
     $localize`:@@problem.tenderDeadlineTooSoon:The submission deadline must be at least ${text(p, 'hours')}:hours: hour(s) from now.`,
+  'direct_award.invalid': (p) =>
+    $localize`:@@problem.directAwardInvalid:Check the direct award: ${text(p, 'field')}:field: is missing or not valid.`,
+  'direct_award.not_configured': () =>
+    $localize`:@@problem.directAwardNotConfigured:Direct awards are off. A Company Admin turns them on in procurement governance.`,
+  'direct_award.no_approver_available': () =>
+    $localize`:@@problem.directAwardNoApprover:No active member other than you holds the direct-award approver role.`,
+  'direct_award.decided': () =>
+    $localize`:@@problem.directAwardDecided:This direct award was already decided.`,
+  'direct_award.not_approved': () =>
+    $localize`:@@problem.directAwardNotApproved:Only an approved direct award can be ratified.`,
+  'direct_award.self_approval_not_allowed': () =>
+    $localize`:@@problem.directAwardSelf:You requested this direct award, so someone else must decide and ratify it.`,
+  'direct_award.approver_role_required': () =>
+    $localize`:@@problem.directAwardRole:Only a member holding the company's direct-award approver role can do this.`,
+  'direct_award.firm_blocked': () =>
+    $localize`:@@problem.directAwardBlocked:A blocked firm cannot be given a direct award.`,
+  'tender.site_visit_invalid': () =>
+    $localize`:@@problem.tenderSiteVisitInvalid:A pre-bid meeting or site visit needs a place and a time in the future, before the submission deadline.`,
+  'tender.site_visit_attendance_not_allowed': () =>
+    $localize`:@@problem.tenderSiteVisitAttendanceNotAllowed:Attendance can be recorded only for a published tender with a site visit, for an issued invitation, before the bids are opened.`,
   'tender.questions_deadline_invalid': () =>
     $localize`:@@problem.tenderQuestionsDeadline:The questions deadline must be in the future and before the submission deadline.`,
   'tender.time_zone_invalid': () =>
@@ -1010,6 +1054,84 @@ const MESSAGES: Record<string, (p: Parameters | undefined) => string> = {
     $localize`:@@problem.bidWithdrawalConfirmation:Confirm that you want to withdraw your bid.`,
   'decision.bid_withdrawn': (p) =>
     $localize`:@@problem.decisionBidWithdrawn:${ltr(text(p, 'subcontractorCode'))}:code: withdrew its bid after opening, so it cannot be awarded. Recompute the recommendation and decide again.`,
+  'user.acting_role_invalid': (p) => {
+    switch (text(p, 'reason') || text(p, 'field')) {
+      case 'self':
+        return $localize`:@@problem.actingSelf:You cannot grant yourself an acting role.`;
+      case 'not_an_approver_role':
+        return $localize`:@@problem.actingRole:Only a role that approves awards can be granted as an acting role.`;
+      case 'already_held':
+        return $localize`:@@problem.actingHeld:This member already holds that role.`;
+      case 'conflict':
+        return $localize`:@@problem.actingConflict:This member's roles cannot be combined with that role (a Technical Evaluator never sees prices).`;
+      case 'mfa_required':
+        return $localize`:@@problem.actingMfa:Your company signs that role in with an authenticator; the member must enrol one first.`;
+      case 'not_active':
+        return $localize`:@@problem.actingInactive:Only an active member can be granted an acting role.`;
+      case 'period':
+        return $localize`:@@problem.actingPeriod:Choose a period that starts now or later and lasts at most 30 days.`;
+      default:
+        return $localize`:@@problem.actingReason:Give the reason for the acting role (3–500 characters).`;
+    }
+  },
+  'user.acting_role_ended': () =>
+    $localize`:@@problem.actingEnded:This acting role has already ended.`,
+  'tender.retender_not_closed': () =>
+    $localize`:@@problem.retenderNotClosed:Only a tender closed without an award can be tendered again.`,
+  'tender.retender_exists': () =>
+    $localize`:@@problem.retenderExists:This tender was already tendered again.`,
+  'platform.package_empty': () =>
+    $localize`:@@problem.platformPackageEmpty:A package sells at least one capability.`,
+  'platform.limit_out_of_range': (p) =>
+    $localize`:@@problem.platformLimitRange:The limit ${text(p, 'key')}:key: must be between 0 and ${text(p, 'maximum')}:maximum:. Record larger capacity as a contract term.`,
+  'recommendation.policy_price_only': () =>
+    $localize`:@@problem.policyPriceOnly:This tender asked for no technical proposal, so it is ranked on price: choose a policy without a technical criterion or pass mark.`,
+  'tender.competition_justification_required': (p) =>
+    $localize`:@@problem.competitionJustification:Your company requires a justification to publish with ${text(p, 'invited')}:invited: invited firm(s), fewer than its minimum of ${text(p, 'minimum')}:minimum:.`,
+  'tender.estimate_required': () =>
+    $localize`:@@problem.estimateRequired:Your company requires an estimate for the work package before publication.`,
+  'tender.schedule_needs_duration': () =>
+    $localize`:@@problem.scheduleNeedsDuration:The declared recommendation policy weighs Schedule, so bidders must give a proposed duration. Require it on the tender, or declare another policy.`,
+  'exceptions.period_invalid': () =>
+    $localize`:@@problem.exceptionsPeriod:Choose a period of at most a year.`,
+  'company.governance_weakening_unconfirmed': () =>
+    $localize`:@@problem.governanceWeakening:These changes loosen procurement controls. Confirm them and give the reason.`,
+  'decision.live_withdraw_first': (p) =>
+    text(p, 'reason') === 'Approved'
+      ? $localize`:@@problem.decisionLiveApproved:An approved decision stands on this evidence. Its submitter withdraws it before the evaluation is reopened or a round is issued.`
+      : $localize`:@@problem.decisionLivePending:A decision awaiting approval stands on this evidence. Its submitter withdraws it before the evaluation is reopened or a round is issued.`,
+  'decision.bid_excluded': (p) =>
+    $localize`:@@problem.decisionBidExcluded:${ltr(text(p, 'subcontractorCode'))}:code:'s bid was excluded after opening, so it cannot be awarded. Recompute the recommendation and decide again.`,
+  'post_opening.invalid': (p) =>
+    text(p, 'field') === 'evidenceReference'
+      ? $localize`:@@problem.postOpeningEvidence:Give the reference of the evidence (a letter, an email or a minute; at most 200 characters).`
+      : text(p, 'field') === 'openingBidId'
+        ? $localize`:@@problem.postOpeningBid:A withdrawal or an exclusion names the opened bid; a cancellation or a closure names none.`
+        : text(p, 'field') === 'comment'
+          ? $localize`:@@problem.postOpeningComment:The comment is too long (at most 1000 characters).`
+          : $localize`:@@problem.postOpeningReason:Give the reason (at least 3 characters, at most 1000).`,
+  'post_opening.approval_required': () =>
+    $localize`:@@problem.postOpeningApprovalRequired:After opening this needs your company's configured approver. Request it on the tender's post-opening approvals page.`,
+  'post_opening.approver_not_configured': () =>
+    $localize`:@@problem.postOpeningApproverNotConfigured:Your company has not named who approves this. A Company Admin sets it in Procurement governance.`,
+  'post_opening.no_approver_available': (p) =>
+    $localize`:@@problem.postOpeningNoApproverAvailable:No active member other than you holds the approver role (${tenantRoleLabel(text(p, 'role'))}:role:), so this cannot be requested now.`,
+  'post_opening.approver_role_required': (p) =>
+    $localize`:@@problem.postOpeningApproverRoleRequired:Only a member holding the approver role (${tenantRoleLabel(text(p, 'role'))}:role:) can decide this request.`,
+  'post_opening.self_approval_not_allowed': () =>
+    $localize`:@@problem.postOpeningSelfApproval:You made this request, so someone else must decide it.`,
+  'post_opening.request_pending': () =>
+    $localize`:@@problem.postOpeningRequestPending:This is already waiting for approval.`,
+  'post_opening.request_decided': () =>
+    $localize`:@@problem.postOpeningRequestDecided:This request was already decided.`,
+  'post_opening.not_applicable': (p) =>
+    text(p, 'reason') === 'not_opened'
+      ? $localize`:@@problem.postOpeningNotOpened:The bids are not opened yet: this is done directly.`
+      : text(p, 'reason') === 'negotiation_round_open'
+        ? $localize`:@@problem.postOpeningRoundOpen:Withdraw the firm from its open negotiation round first.`
+        : text(p, 'reason') === 'bid_excluded'
+          ? $localize`:@@problem.postOpeningBidExcluded:This bid is already excluded.`
+          : $localize`:@@problem.postOpeningBidWithdrawn:This bid is already withdrawn.`,
   'outside_bid.invalid': (p) =>
     $localize`:@@problem.outsideBidInvalid:Complete the record of the bid received outside the portal (${text(p, 'field')}:field:): the firm, how and when it arrived (after publication, not in the future), an attestation of at least 10 characters, the transcription and the original files.`,
   'outside_bid.self_confirmation': () =>

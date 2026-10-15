@@ -34,6 +34,8 @@ import {
 
 type WorkspaceSection =
   | 'overview'
+  | 'exceptions'
+  | 'directAwards'
   | 'policies'
   | 'recommendationPolicies'
   | 'approvalMatrix'
@@ -96,6 +98,8 @@ export class WorkspaceShell implements OnInit {
     if (path.startsWith('/search')) return 'search';
     if (path.startsWith('/admin/audit')) return 'audit';
     if (path.startsWith('/pilot-metrics')) return 'pilotMetrics';
+    if (path.startsWith('/exceptions')) return 'exceptions';
+    if (path.startsWith('/direct-awards')) return 'directAwards';
     if (path.startsWith('/admin/email')) return 'email';
     if (path.startsWith('/admin/company')) return 'company';
     if (path.startsWith('/subcontractors')) return 'subcontractors';
@@ -209,6 +213,8 @@ export class WorkspaceShell implements OnInit {
       this.showApprovalRoutes() ||
       this.showAudit() ||
       this.showPilotMetrics() ||
+      this.showExceptions() ||
+      this.showDirectAwards() ||
       this.showCompanyUsers() ||
       this.showCompanyEmail() ||
       this.showCompanySettings()
@@ -270,6 +276,19 @@ export class WorkspaceShell implements OnInit {
     return (
       this.session.hasPermission(PERFORMANCE_PERMISSIONS.view) &&
       PERFORMANCE_FEATURES.every((feature) => this.entitlements.has(feature))
+    );
+  }
+
+  /** Phase 1 SI-068 (ADR-184): the exceptions register, for those who approve awards and the audit reader. */
+  protected showExceptions(): boolean {
+    return this.session.hasPermission('Award.Approve') || this.session.hasPermission('Audit.View');
+  }
+
+  /** Phase 1 SI-124: emergency direct awards, for decision readers (the values are commercial). */
+  protected showDirectAwards(): boolean {
+    return (
+      this.session.hasPermission('Decision.View') &&
+      this.session.hasPermission('Evaluation.ViewCommercial')
     );
   }
 

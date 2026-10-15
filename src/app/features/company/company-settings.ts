@@ -1,5 +1,5 @@
 import { SessionService } from '../../core/auth/session.service';
-import { COMPANY_EXPORT_URL, TENANT_PERMISSIONS } from '../identity/tenant-identity.api';
+import { TENANT_PERMISSIONS } from '../identity/tenant-identity.api';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { LocaleService } from '../../core/localization/locale.service';
 import { currencyOptionLabel } from '../../core/localization/money';
@@ -156,23 +156,43 @@ import { CompanyApi, CompanyProfile, Currency, LOGO_ACCEPT, LOGO_MAX_BYTES } fro
             </div>
           }
         </section>
-        <!-- CF-071 (ADR-134): the company's complete, verifiable export (also during a read-only grace). -->
+        <!-- CF-071 (ADR-134): the company's complete, verifiable export (also during a read-only grace).
+             Phase 2 SI-001 / SI-092: sealed bids and unsafe files stay in the product; the download is confirmed with an authenticator code. -->
         @if (canManageData()) {
           <section class="prj-card" aria-labelledby="company-data-title">
             <h2 id="company-data-title" i18n="@@companySettings.dataTitle">Your company's data</h2>
             <p class="prj-hint" i18n="@@companySettings.dataHint">
-              One ZIP with every record and stored file, and a manifest whose fingerprints let
-              anyone verify the evidence without this product. Passwords and secret tokens are never
-              included.
+              One ZIP with your company's records and stored files, and a manifest whose
+              fingerprints let anyone verify the evidence without this product. Passwords and secret
+              tokens are never included.
             </p>
-            <a
-              class="prj-btn prj-btn--ghost"
-              [href]="exportUrl"
-              download
-              data-testid="company-export"
-              i18n="@@companySettings.export"
-              >Download the complete export</a
-            >
+            <p class="prj-hint" i18n="@@companySettings.dataWithheld">
+              Bids that are still sealed, bidders' drafts and files not yet confirmed free of
+              malware stay in the product; the manifest lists each one with its fingerprint.
+            </p>
+            <form class="company-export" (submit)="$event.preventDefault(); download()">
+              <label for="company-export-code" i18n="@@companySettings.exportCode"
+                >Code from your authenticator app</label
+              >
+              <input
+                id="company-export-code"
+                class="company-export__code"
+                inputmode="numeric"
+                autocomplete="one-time-code"
+                maxlength="8"
+                required
+                [value]="exportCode()"
+                (input)="exportCode.set($any($event.target).value.trim())"
+              />
+              <button
+                type="submit"
+                class="prj-btn prj-btn--ghost"
+                data-testid="company-export"
+                [disabled]="exporting() || exportCode().length < 6"
+              >
+                <span i18n="@@companySettings.export">Download the complete export</span>
+              </button>
+            </form>
           </section>
         }
       } @else if (!error()) {
@@ -187,6 +207,20 @@ import { CompanyApi, CompanyProfile, Currency, LOGO_ACCEPT, LOGO_MAX_BYTES } fro
       display: grid;
       gap: 0.75rem;
       margin-block-end: 1rem;
+    }
+    .company-export {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: end;
+    }
+    .company-export label {
+      flex-basis: 100%;
+    }
+    .company-export__code {
+      inline-size: 9rem;
+      font-variant-numeric: tabular-nums;
+      direction: ltr;
     }
     .company-logo {
       margin: 0;
@@ -209,7 +243,8 @@ import { CompanyApi, CompanyProfile, Currency, LOGO_ACCEPT, LOGO_MAX_BYTES } fro
 export class CompanySettingsPage implements OnInit {
   private readonly api = inject(CompanyApi);
   private readonly session = inject(SessionService);
-  readonly exportUrl = COMPANY_EXPORT_URL;
+  readonly exportCode = signal('');
+  readonly exporting = signal(false);
   readonly canManageData = () => this.session.hasPermission(TENANT_PERMISSIONS.companyManageData);
   private readonly locale = inject(LocaleService).locale;
   readonly accept = LOGO_ACCEPT;
@@ -272,6 +307,36 @@ export class CompanySettingsPage implements OnInit {
       this.api.removeLogo(current.version),
       () => $localize`:@@companySettings.logoRemoved:The logo is removed.`,
     );
+  }
+
+  /** Phase 2 SI-092: the export, confirmed with a fresh authenticator code; the browser saves the ZIP the server streamed. */
+  download(): void {
+    const code = this.exportCode();
+    if (this.exporting() || code.length < 6) return;
+    this.exporting.set(true);
+    this.error.set('');
+    this.notice.set('');
+    this.api.exportCompany(code).subscribe({
+      next: ({ blob, fileName }) => {
+        this.exporting.set(false);
+        this.exportCode.set('');
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = fileName;
+        anchor.click();
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        this.notice.set(
+          $localize`:@@companySettings.exported:The export is downloaded. Its manifest lists anything that stayed in the product.`,
+        );
+        this.focus('company-settings-notice');
+      },
+      error: (error: unknown) => {
+        this.exporting.set(false);
+        this.exportCode.set('');
+        this.fail(problemMessage(error, { plane: 'tenant' }));
+      },
+    });
   }
 
   private run(request: ReturnType<CompanyApi['profile']>, success: () => string): void {

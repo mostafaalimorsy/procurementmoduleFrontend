@@ -134,8 +134,9 @@
     <div class="security-intro">
       <h2 id="security-title" i18n="@@users.securityTitle">Sign-in security</h2>
       <p i18n="@@users.securityIntro">
-        These roles sign in with a password and an authenticator app. The Company Admin always does.
-        A user in one of them sets up the authenticator at their next sign-in.
+        These roles sign in with a password and an authenticator app. The Company Admin, Procurement
+        Manager and Approver / Director always do. A user in one of them sets up the authenticator
+        at their next sign-in.
       </p>
     </div>
     <form class="security-form" (ngSubmit)="saveSecurity()">
@@ -475,6 +476,8 @@
   }
 </section>
 
+<app-acting-roles-panel [users]="users()" />
+
 <app-company-plan-panel [plan]="plan()" />
 
 @if (pending(); as action) {
@@ -494,6 +497,19 @@
         <p i18n="@@users.suspendIntent">
           They lose access at once and every session they have ends. You can reactivate them later.
         </p>
+        @if (responsibilities().length) {
+          <div class="prj-note" data-testid="suspension-impact">
+            <p i18n="@@users.suspendImpact">
+              They are still named for the following. Hand each over first — a suspended manager is
+              treated as unassigned:
+            </p>
+            <ul>
+              @for (item of responsibilities(); track item.kind + item.recordId) {
+                <li>{{ responsibilityLabel(item) }}</li>
+              }
+            </ul>
+          </div>
+        }
       }
       @case ('reset') {
         <p i18n="@@users.resetIntent">

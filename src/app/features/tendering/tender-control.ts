@@ -12,7 +12,7 @@ import {
   untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { EntitlementsService } from '../../core/auth/entitlements.service';
 import { NotInPlan } from '../../shared/ui/not-in-plan';
 import { SessionService } from '../../core/auth/session.service';
@@ -78,6 +78,7 @@ const POLL_LIMIT = 30;
 })
 export class TenderControl {
   private readonly api = inject(TenderingApi);
+  private readonly router = inject(Router);
   private readonly session = inject(SessionService);
   private readonly entitlements = inject(EntitlementsService);
   readonly locale = inject(LocaleService).locale;
@@ -147,6 +148,22 @@ export class TenderControl {
       !this.entitlements.has('award'),
   );
   readonly closingWithoutAward = signal(false);
+  /** Phase 1 D04 B (ADR-184): who may start the re-tender of a tender closed without an award. */
+  readonly canRetender = computed(() => this.session.hasPermission(TENDER_PERMISSIONS.create));
+
+  startRetender(): void {
+    if (this.busy()) return;
+    this.busy.set(true);
+    this.api.startRetender(this.tender().id).subscribe({
+      next: (draft) => void this.router.navigate(['/tenders', draft.id]),
+      error: (error: unknown) => {
+        this.busy.set(false);
+        this.error.set(tenderProblemMessage(error));
+      },
+    });
+  }
+  /** Phase 1 D02 (ADR-183): after opening, cancelling and closing are requested for approval on the post-opening page. */
+  readonly bidsOpened = computed(() => !!this.tender().closure?.bidsOpenedAtUtc);
   noAwardReason = '';
 
   startCloseWithoutAward(): void {

@@ -56,7 +56,16 @@ export interface PilotPeriod {
     readonly due60: number;
     readonly within60: number;
     readonly within60Percent: string | null;
+    /** Phase 1 SI-069: accepted awards whose works were expected complete by now and have no finalized closeout. */
+    readonly completedWithoutCloseout?: number;
   };
+  /** Phase 1 SI-071: tenders that ended without an award in the month (cancelled after publication, or closed without award). */
+  readonly endedWithoutAward?: {
+    readonly count: number;
+    readonly cancelled: number;
+    readonly closedWithoutAward: number;
+    readonly publicationToEndDays: PilotDuration;
+  } | null;
 }
 
 export interface PilotMetrics {

@@ -28,11 +28,13 @@ import {
   variationCauseLabel,
 } from './performance-labels';
 import {
+  RATINGS_BASES,
   RetrospectiveApi,
   RetrospectiveCommercialDraft,
   RetrospectiveExecutionDraft,
   RetrospectiveOutcome,
   retrospectiveCommercialDraft,
+  ratingsBasisLabel,
   retrospectiveExecutionDraft,
 } from './retrospective.api';
 
@@ -54,6 +56,9 @@ import {
         <p id="retro-error" class="prj-note prj-note--error" role="alert" tabindex="-1">
           {{ error() }}
         </p>
+      }
+      @if (notice()) {
+        <p class="prj-note" role="status">{{ notice() }}</p>
       }
       @if (creating()) {
         <h1 id="retro-page-title" i18n="@@retrospective.newTitle">Record a past outcome</h1>
@@ -337,35 +342,50 @@ import {
                   [(ngModel)]="execution.actualCompletionDate"
                 />
               </div>
+              <!-- Phase 1 SI-020: the ratings' evidence basis; "not recorded" means no rating, never a zero. -->
               <div class="prj-field">
-                <label for="retro-quality" i18n="@@closeout.qualityRating">Quality</label>
-                <select id="retro-quality" name="quality" [(ngModel)]="execution.qualityRating">
-                  <option [ngValue]="null" i18n="@@retrospective.none">—</option>
-                  @for (rating of ratings; track rating) {
-                    <option [ngValue]="rating">{{ rating }}</option>
+                <label for="retro-basis" i18n="@@retrospective.ratingsBasis">Ratings</label>
+                <select id="retro-basis" name="basis" [(ngModel)]="execution.ratingsBasis">
+                  @for (basis of ratingsBases; track basis) {
+                    <option [value]="basis">{{ basisLabel(basis) }}</option>
                   }
                 </select>
               </div>
-              <div class="prj-field">
-                <label for="retro-hse" i18n="@@closeout.hseRating">HSE / safety</label>
-                <select id="retro-hse" name="hse" [(ngModel)]="execution.hseRating">
-                  <option [ngValue]="null" i18n="@@retrospective.none">—</option>
-                  @for (rating of ratings; track rating) {
-                    <option [ngValue]="rating">{{ rating }}</option>
-                  }
-                </select>
-              </div>
-              <div class="prj-field">
-                <label for="retro-rehire" i18n="@@closeout.rehireShort">Would work again</label>
-                <select id="retro-rehire" name="rehire" [(ngModel)]="execution.wouldWorkAgain">
-                  <option value="" i18n="@@retrospective.none">—</option>
-                  @for (choice of rehireChoices; track choice) {
-                    <option [value]="choice">{{ rehireLabel(choice) }}</option>
-                  }
-                </select>
-              </div>
+              @if (execution.ratingsBasis !== 'NotRecorded') {
+                <div class="prj-field">
+                  <label for="retro-quality" i18n="@@closeout.qualityRating">Quality</label>
+                  <select id="retro-quality" name="quality" [(ngModel)]="execution.qualityRating">
+                    <option [ngValue]="null" i18n="@@retrospective.none">—</option>
+                    @for (rating of ratings; track rating) {
+                      <option [ngValue]="rating">{{ rating }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="prj-field">
+                  <label for="retro-hse" i18n="@@closeout.hseRating">HSE / safety</label>
+                  <select id="retro-hse" name="hse" [(ngModel)]="execution.hseRating">
+                    <option [ngValue]="null" i18n="@@retrospective.none">—</option>
+                    @for (rating of ratings; track rating) {
+                      <option [ngValue]="rating">{{ rating }}</option>
+                    }
+                  </select>
+                </div>
+                <div class="prj-field">
+                  <label for="retro-rehire" i18n="@@closeout.rehireShort">Would work again</label>
+                  <select id="retro-rehire" name="rehire" [(ngModel)]="execution.wouldWorkAgain">
+                    <option value="" i18n="@@retrospective.none">—</option>
+                    @for (choice of rehireChoices; track choice) {
+                      <option [value]="choice">{{ rehireLabel(choice) }}</option>
+                    }
+                  </select>
+                </div>
+              }
             </div>
-            @if (execution.wouldWorkAgain && execution.wouldWorkAgain !== 'Yes') {
+            @if (
+              execution.ratingsBasis !== 'NotRecorded' &&
+              execution.wouldWorkAgain &&
+              execution.wouldWorkAgain !== 'Yes'
+            ) {
               <div class="prj-field">
                 <label for="retro-rationale" i18n="@@retrospective.rationale"
                   >Why not an unconditional yes? (required)</label
@@ -413,6 +433,19 @@ import {
             >
               Confirm the past outcome
             </button>
+            @if (view.sourceFileSha256) {
+              <!-- Phase 1 SI-020: one reviewed attestation for the whole checked file. -->
+              <button
+                class="prj-btn prj-btn--ghost"
+                type="button"
+                data-testid="retro-confirm-file"
+                [disabled]="!attested || busy()"
+                (click)="confirmFile(view.sourceFileSha256)"
+                i18n="@@retrospective.confirmFile"
+              >
+                Confirm every complete record of this file
+              </button>
+            }
           } @else if (view.status !== 'Confirmed') {
             <p class="prj-hint" i18n="@@retrospective.confirmOwner">
               Procurement leadership who recorded none of it confirms the past outcome once every
@@ -462,11 +495,16 @@ import {
                       >cost <bdi dir="ltr">{{ percent(version.costVariancePercent) }}</bdi></span
                     >
                     ·
-                    <span i18n="@@retrospective.ratingsShort"
-                      >quality <bdi dir="ltr">{{ version.qualityRating }}</bdi> · HSE
-                      <bdi dir="ltr">{{ version.hseRating }}</bdi></span
-                    >
-                    · {{ rehireLabel(version.wouldWorkAgain) }}
+                    @if (version.ratingsBasis === 'NotRecorded') {
+                      {{ basisLabel('NotRecorded') }}
+                    } @else {
+                      <span i18n="@@retrospective.ratingsShort"
+                        >quality <bdi dir="ltr">{{ version.qualityRating }}</bdi> · HSE
+                        <bdi dir="ltr">{{ version.hseRating }}</bdi></span
+                      >
+                      · {{ rehireLabel(version.wouldWorkAgain) }} ·
+                      {{ basisLabel(version.ratingsBasis) }}
+                    }
                   </p>
                   <p class="prj-hint">
                     <span i18n="@@retrospective.versionBy"
@@ -533,6 +571,10 @@ export class RetrospectivePage implements OnInit {
   readonly causes = VARIATION_CAUSES;
   readonly ratings = RATINGS;
   readonly rehireChoices = REHIRE_CHOICES;
+  readonly ratingsBases = RATINGS_BASES;
+  readonly basisLabel = ratingsBasisLabel;
+  /** Phase 1 SI-020: what a file confirmation did. */
+  readonly notice = signal('');
   readonly noteMax = NOTE_MAX;
   readonly reasonMin = REASON_MIN;
   readonly creating = signal(false);
@@ -573,6 +615,7 @@ export class RetrospectivePage implements OnInit {
     sectionVersion: null,
     updatedAtUtc: null,
     updatedByName: null,
+    ratingsBasis: null,
   });
   /** Kept across a retry of the same create or confirm, so a lost response never acts twice. */
   private actionKey = requestKey();
@@ -653,6 +696,27 @@ export class RetrospectivePage implements OnInit {
     const view = this.record();
     if (!view || !this.attested || this.busy()) return;
     this.act(this.api.confirm(view.id, view.version, this.actionKey), true);
+  }
+
+  /** Phase 1 SI-020: one attestation confirms every complete record of the file this record was imported from. */
+  confirmFile(sha256: string): void {
+    const view = this.record();
+    if (!view || !this.attested || this.busy()) return;
+    this.busy.set(true);
+    this.api.confirmFile(sha256, this.actionKey).subscribe({
+      next: (result) => {
+        this.busy.set(false);
+        this.actionKey = requestKey();
+        this.notice.set(
+          $localize`:@@retrospective.fileConfirmed:${result.confirmed}:confirmed: record(s) confirmed. ${result.incomplete}:incomplete: still incomplete, ${result.recordedByYou}:mine: recorded by you (someone else confirms them).`,
+        );
+        this.load(view.id);
+      },
+      error: (error: unknown) => {
+        this.busy.set(false);
+        this.error.set(performanceProblemMessage(error));
+      },
+    });
   }
 
   correct(): void {

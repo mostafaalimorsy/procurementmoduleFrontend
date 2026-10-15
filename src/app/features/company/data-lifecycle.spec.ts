@@ -82,7 +82,7 @@ describe('Company data lifecycle (CF-071)', () => {
     expect(button(element, 'Erase personal data')).toBeUndefined();
   });
 
-  it('offers the complete export on the company settings page to company administration', () => {
+  it('offers the complete export to company administration, confirmed with an authenticator code (SI-092)', async () => {
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
@@ -112,10 +112,46 @@ describe('Company data lifecycle (CF-071)', () => {
       version: 'v1',
     });
     fixture.detectChanges();
-    const link = (fixture.nativeElement as HTMLElement).querySelector(
-      '[data-testid="company-export"]',
-    ) as HTMLAnchorElement;
-    expect(link.getAttribute('href')).toBe('/api/v1/admin/company-export');
-    expect(link.hasAttribute('download')).toBe(true);
+    const element = fixture.nativeElement as HTMLElement;
+    // Phase 2 SI-092: never a plain link — the download is a POST confirmed with an authenticator code.
+    const submit = element.querySelector('[data-testid="company-export"]') as HTMLButtonElement;
+    expect(submit.tagName).toBe('BUTTON');
+    expect(submit.disabled).toBe(true);
+    expect(text(element)).toContain('Bids that are still sealed');
+    const input = element.querySelector('#company-export-code') as HTMLInputElement;
+    input.value = '000000';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(submit.disabled).toBe(false);
+    submit.click();
+    fixture.detectChanges();
+    const refused = http.expectOne('/api/v1/admin/company-export');
+    expect(refused.request.method).toBe('POST');
+    expect(refused.request.body).toEqual({ code: '000000' });
+    refused.flush(
+      new Blob([JSON.stringify({ status: 400, code: 'auth.step_up_code_invalid' })], {
+        type: 'application/problem+json',
+      }),
+      { status: 400, statusText: 'Bad Request' },
+    );
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(text(element)).toContain('Enter the current code from your authenticator app');
+    // A fresh code downloads the ZIP the server streamed.
+    const save = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    input.value = '123456';
+    input.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    submit.click();
+    http.expectOne('/api/v1/admin/company-export').flush(new Blob(['PK']), {
+      headers: {
+        'Content-Disposition': 'attachment; filename=company-export-20261014T120000Z.zip',
+      },
+    });
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(save).toHaveBeenCalled();
+    expect(text(element)).toContain('The export is downloaded');
+    save.mockRestore();
   });
 });

@@ -158,14 +158,14 @@
           </button>
         }
         @if (can.closeForRetender) {
-          <button
+          <!-- Phase 1 D02 (ADR-183): requested here, approved by the company's configured approver. -->
+          <a
             class="prj-btn prj-btn--ghost"
-            type="button"
-            (click)="open('retender')"
-            i18n="@@awardOutcome.retender"
+            [routerLink]="['/tenders', tenderId(), 'post-opening']"
+            [queryParams]="{ act: 'RetenderClosure' }"
+            i18n="@@awardOutcome.requestRetender"
+            >Request closure for re-tender (needs approval)</a
           >
-            Close the tender to re-tender
-          </button>
         }
       </div>
       @if (can.promoteNext) {

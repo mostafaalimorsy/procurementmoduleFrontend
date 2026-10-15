@@ -26,7 +26,15 @@ import {
             >, version {{ origin.templateVersion }}.</ng-container
           >
         }
-        @if (origin.clonedFromTenderId) {
+        @if (origin.retenderOfTenderId) {
+          <ng-container i18n="@@tenderOrigin.retender"
+            >Re-tender of
+            <a [routerLink]="['/tenders', origin.retenderOfTenderId]"
+              ><bdi dir="ltr">{{ origin.retenderOfReference }}</bdi></a
+            >, closed without an award:
+            <bdi>{{ origin.retenderOfClosureReason }}</bdi></ng-container
+          >
+        } @else if (origin.clonedFromTenderId) {
           &ngsp;<ng-container i18n="@@tenderOrigin.copy"
             >Copied from
             <a [routerLink]="['/tenders', origin.clonedFromTenderId]"

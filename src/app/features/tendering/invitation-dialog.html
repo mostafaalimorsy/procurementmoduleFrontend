@@ -87,6 +87,53 @@
       <p class="prj-note" role="status" tabindex="-1" [id]="noticeId">{{ notice() }}</p>
     }
 
+    <!-- Phase 1 SI-105: attendance at the pre-bid meeting or site visit. -->
+    @if (tender().siteVisit; as visit) {
+      <section class="tnd-block" data-testid="invitation-site-visit">
+        <h3 i18n="@@tenderInvitation.siteVisitTitle">Site visit attendance</h3>
+        <p>
+          @if (invitation().siteVisitAttended === true) {
+            <ng-container i18n="@@tenderInvitation.siteVisitStateAttended"
+              >Attended — recorded by
+              <bdi>{{ invitation().siteVisitRecordedByName }}</bdi></ng-container
+            >
+          } @else if (invitation().siteVisitAttended === false) {
+            <ng-container i18n="@@tenderInvitation.siteVisitStateAbsent"
+              >Did not attend — recorded by
+              <bdi>{{ invitation().siteVisitRecordedByName }}</bdi></ng-container
+            >
+          } @else {
+            <ng-container i18n="@@tenderInvitation.siteVisitStateNone">Not recorded</ng-container>
+          }
+          @if (visit.mandatory) {
+            <span class="prj-chip" i18n="@@tenderInvitation.siteVisitMandatory">Mandatory</span>
+          }
+        </p>
+        @if (canRecordSiteVisit()) {
+          <div class="prj-actions">
+            <button
+              class="prj-btn"
+              type="button"
+              [disabled]="busy() || invitation().siteVisitAttended === true"
+              (click)="recordSiteVisit(true)"
+              i18n="@@tenderInvitation.siteVisitMarkAttended"
+            >
+              Attended
+            </button>
+            <button
+              class="prj-btn prj-btn--ghost"
+              type="button"
+              [disabled]="busy() || invitation().siteVisitAttended === false"
+              (click)="recordSiteVisit(false)"
+              i18n="@@tenderInvitation.siteVisitMarkAbsent"
+            >
+              Did not attend
+            </button>
+          </div>
+        }
+      </section>
+    }
+
     @if (canManage()) {
       @if (pending(); as action) {
         <div class="tnd-confirm" role="group" [attr.aria-labelledby]="pendingId">

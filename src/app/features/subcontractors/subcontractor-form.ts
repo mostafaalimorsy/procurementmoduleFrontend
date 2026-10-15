@@ -7,6 +7,9 @@ import { problemField } from '../../core/localization/product-problem';
 import {
   ContactWrite,
   DirectoryApi,
+  SUBCONTRACTOR_SOURCES,
+  SubcontractorSource,
+  sourceLabel,
   SubcontractorDetail,
   SubcontractorWrite,
   Trade,
@@ -14,6 +17,7 @@ import {
   directoryProblemMessage,
 } from './subcontractors.api';
 import { ErrorSummary } from '../../shared/ui/error-summary';
+import { AssignableUser, ProjectsApi } from '../projects/projects.api';
 
 /** A contact row being edited; `id` is kept for existing contacts so their identity survives the edit. */
 interface ContactRow {
@@ -37,6 +41,11 @@ export class SubcontractorForm implements OnInit {
   private readonly api = inject(DirectoryApi);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly projects = inject(ProjectsApi);
+  readonly sources = SUBCONTRACTOR_SOURCES;
+  readonly sourceLabel = sourceLabel;
+  /** Phase 1 SI-100: members who may own the relationship (empty when the reader cannot list them). */
+  readonly owners = signal<readonly AssignableUser[]>([]);
 
   readonly countries = sortedCountries();
   readonly maxContacts = MAX_CONTACTS;
@@ -55,6 +64,11 @@ export class SubcontractorForm implements OnInit {
   countryCode = '';
   city = '';
   notes = '';
+  source: SubcontractorSource | '' = '';
+  sourceNote = '';
+  /** One region per line (or comma-separated). */
+  regionsText = '';
+  ownerId = '';
   selectedTrades = new Set<string>();
   contacts: ContactRow[] = [];
   primaryIndex = -1;
@@ -93,6 +107,9 @@ export class SubcontractorForm implements OnInit {
 
   ngOnInit(): void {
     const id = this.route.snapshot.paramMap.get('id');
+    this.projects
+      .assignableUsers()
+      .subscribe({ next: (users) => this.owners.set(users), error: () => this.owners.set([]) });
     this.api.trades().subscribe({
       next: (trades) => {
         this.allTrades = trades;
@@ -115,6 +132,10 @@ export class SubcontractorForm implements OnInit {
         this.countryCode = item.countryCode ?? '';
         this.city = item.city ?? '';
         this.notes = item.notes ?? '';
+        this.source = item.source ?? '';
+        this.sourceNote = item.sourceNote ?? '';
+        this.regionsText = (item.serviceRegions ?? []).join('\n');
+        this.ownerId = item.relationshipOwnerAccountId ?? '';
         this.selectedTrades = new Set(item.trades.map((trade) => trade.id));
         this.contacts = item.contacts.map((contact) => ({
           id: contact.id,
@@ -217,9 +238,19 @@ export class SubcontractorForm implements OnInit {
       notes: blankToNull(this.notes),
       tradeIds: [...this.selectedTrades],
       contacts,
+      relationshipSet: true,
+      source: this.source || null,
+      sourceNote: blankToNull(this.sourceNote),
+      serviceRegions: this.regionsText
+        .split(/[\n,،]/)
+        .map((region) => region.trim())
+        .filter(Boolean),
+      relationshipOwnerAccountId: this.ownerId || EMPTY_ID,
     };
   }
 }
+
+const EMPTY_ID = '00000000-0000-0000-0000-000000000000';
 
 function blankToNull(value: string): string | null {
   const trimmed = value.trim();

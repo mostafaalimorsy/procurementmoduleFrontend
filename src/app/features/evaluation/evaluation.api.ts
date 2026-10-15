@@ -114,6 +114,8 @@ export interface OpenedBid {
   readonly withheldFileCount: number;
   /** CF-058 (ADR-102): the opened revision was recorded from a bid received outside the portal. */
   readonly outsidePortal?: boolean;
+  /** Phase 1 SI-105: not recorded as attending a mandatory pre-bid meeting or site visit (a flag, never an exclusion). */
+  readonly siteVisitMissed?: boolean;
   /** CF-049 (ADR-100): the firm withdrew after opening, as recorded by the buyer (the opening record is unchanged). */
   readonly withdrawal?: {
     readonly stage: 'BeforeDeadline' | 'AfterOpening';
@@ -123,6 +125,25 @@ export interface OpenedBid {
     readonly reason: string | null;
     readonly evidenceReference: string | null;
   } | null;
+  /**
+   * Phase 1 D02 (ADR-183): an approved material exclusion after opening — when and by whom (its reason stays on the request, which only those
+   * who request or approve post-opening acts read).
+   */
+  readonly excluded?: {
+    readonly excludedAtUtc: string;
+    readonly requestedByName: string;
+    readonly approvedByName: string;
+    readonly requestId: string;
+  } | null;
+}
+
+/** Phase 1 SI-036 (ADR-184): a counted scorecard from off the named panel or from a price-aware scorer. */
+export interface LabelledScorecard {
+  readonly openingBidId: string;
+  readonly subcontractorCode: string;
+  readonly evaluatorName: string;
+  readonly offPanel: boolean;
+  readonly priceAware: boolean;
 }
 
 export interface OpeningAbsentee {
@@ -285,6 +306,8 @@ export interface EvaluationOverview {
   readonly canRefresh: boolean;
   /** CF-043 (ADR-106): the evaluation panel. */
   readonly panel?: EvaluationPanel | null;
+  /** Phase 1 SI-036: counted scorecards from off the panel or from a price-aware scorer, labelled. */
+  readonly labelledScorecards?: readonly LabelledScorecard[] | null;
 }
 
 export interface EvaluationPanel {
@@ -699,20 +722,6 @@ export class EvaluationApi {
     return this.http.post<TenderOpening>(
       `${this.tender(tenderId)}/opening/files/${encodeURIComponent(fileId)}/classification`,
       { classification, version },
-    );
-  }
-
-  /** CF-049 (ADR-100): records a firm's withdrawal after opening, with a reason and the reference of its evidence. */
-  recordWithdrawal(
-    tenderId: string,
-    openingBidId: string,
-    reason: string,
-    evidenceReference: string,
-    requestKey: string,
-  ): Observable<TenderOpening> {
-    return this.http.post<TenderOpening>(
-      `${this.tender(tenderId)}/opening/bids/${encodeURIComponent(openingBidId)}/withdrawal`,
-      { reason, evidenceReference, requestKey },
     );
   }
 

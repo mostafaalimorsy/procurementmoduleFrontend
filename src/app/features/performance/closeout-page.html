@@ -324,7 +324,15 @@
                   <div>
                     <dt i18n="@@closeout.promisedCompletion">Promised</dt>
                     <dd>
-                      @if (base.mobilizationCommitment) {
+                      @if (base.mobilizationDays !== null && base.mobilizationDays !== undefined) {
+                        <!-- Phase 1 SI-127: the frozen commitment and the date it implies. -->
+                        <span data-testid="closeout-mobilization-promise"
+                          >{{ mobilizationCommitmentLabel(base.mobilizationDays) }} (<bdi>{{
+                            base.mobilizationDueDate | businessDate
+                          }}</bdi
+                          >)</span
+                        >
+                      } @else if (base.mobilizationCommitment) {
                         <bdi>{{ base.mobilizationCommitment }}</bdi>
                       } @else {
                         <span class="prj-hint" i18n="@@closeout.noMobilizationBaseline"
@@ -335,7 +343,17 @@
                   </div>
                   <div>
                     <dt i18n="@@closeout.actual">Actual</dt>
-                    <dd>{{ mobilizationLabel(view.execution.mobilization) }}</dd>
+                    <dd>
+                      {{ mobilizationLabel(view.execution.mobilization) }}
+                      @if (
+                        base.mobilizationVarianceDays !== null &&
+                        base.mobilizationVarianceDays !== undefined
+                      ) {
+                        <br /><span data-testid="closeout-mobilization-variance">{{
+                          mobilizationVarianceLabel(base.mobilizationVarianceDays)
+                        }}</span>
+                      }
+                    </dd>
                   </div>
                 </dl>
               </div>
@@ -561,7 +579,14 @@
                 <fieldset class="prj-fieldset">
                   <legend i18n="@@closeout.mobilization">Mobilization</legend>
                   <p class="prj-hint">
-                    @if (base.mobilizationCommitment) {
+                    @if (base.mobilizationDays !== null && base.mobilizationDays !== undefined) {
+                      <span i18n="@@closeout.mobilizationPromisedDays"
+                        >Promised at award:
+                        <bdi>{{ mobilizationCommitmentLabel(base.mobilizationDays) }}</bdi> (by
+                        <bdi>{{ base.mobilizationDueDate | businessDate }}</bdi
+                        >)</span
+                      >
+                    } @else if (base.mobilizationCommitment) {
                       <span i18n="@@closeout.mobilizationPromised"
                         >Promised at award: <bdi>{{ base.mobilizationCommitment }}</bdi></span
                       >
@@ -1197,10 +1222,53 @@
                   <bdi dir="ltr">{{ view.currentVersionNumber }}</bdi></span
                 >
               </p>
-              <p class="prj-hint" i18n="@@closeout.closedHelp">
-                This outcome is part of the subcontractor’s performance history. It cannot be
-                edited; a correction reopens it with a reason and closes it again as a new version.
-              </p>
+              @if (view.acknowledgementPending) {
+                <!-- Phase 1 SI-063: a negative outcome counts only once procurement leadership acknowledges it. -->
+                <div class="prj-note prj-note--warn" data-testid="closeout-acknowledgement-pending">
+                  <p i18n="@@closeout.acknowledgementPending">
+                    This closeout records a negative outcome. It counts in the subcontractor’s
+                    performance history only after procurement leadership acknowledges it.
+                  </p>
+                  @if (view.canAcknowledge) {
+                    <label class="prj-field">
+                      <span i18n="@@closeout.acknowledgeComment">Comment (optional)</span>
+                      <textarea
+                        id="acknowledge-comment"
+                        rows="2"
+                        [maxlength]="reasonMax"
+                        [(ngModel)]="acknowledgeComment"
+                      ></textarea>
+                    </label>
+                    <button
+                      class="prj-btn prj-btn--primary"
+                      type="button"
+                      data-testid="closeout-acknowledge"
+                      [disabled]="acting()"
+                      (click)="acknowledge()"
+                      i18n="@@closeout.acknowledge"
+                    >
+                      Acknowledge the outcome
+                    </button>
+                  }
+                </div>
+              } @else {
+                @if (view.acknowledgedByName) {
+                  <p
+                    class="prj-hint"
+                    data-testid="closeout-acknowledged"
+                    i18n="@@closeout.acknowledgedBy"
+                  >
+                    Negative outcome acknowledged by <bdi>{{ view.acknowledgedByName }}</bdi> on
+                    <bdi>{{ view.acknowledgedAtUtc | businessDate: 'instant' }}</bdi
+                    >.
+                  </p>
+                }
+                <p class="prj-hint" i18n="@@closeout.closedHelp">
+                  This outcome is part of the subcontractor’s performance history. It cannot be
+                  edited; a correction reopens it with a reason and closes it again as a new
+                  version.
+                </p>
+              }
               @if (!view.access.reopen) {
                 <!-- CF-101 AC2: who may reopen it, from the permission matrix. -->
                 <p class="prj-hint" data-testid="closed-notice">{{ closedNotice() }}</p>

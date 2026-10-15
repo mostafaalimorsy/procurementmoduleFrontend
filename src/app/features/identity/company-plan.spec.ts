@@ -18,6 +18,9 @@ function flushSecurity(http: HttpTestingController): void {
     });
   for (const request of http.match('/api/v1/admin/access-policy'))
     request.flush({ domains: ['delta.example'], addresses: [] });
+  // Phase 1 SI-051: the acting-approver panel on the same page.
+  for (const request of http.match('/api/v1/admin/acting-roles'))
+    request.flush({ grants: [], roles: ['ApproverDirector'] });
 }
 
 const plan: CompanyPlan = {

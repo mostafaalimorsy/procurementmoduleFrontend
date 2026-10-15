@@ -85,6 +85,28 @@
                 </dd>
               </div>
             }
+            <!-- Phase 1 SI-105: the pre-bid meeting or site visit. -->
+            @if (item.siteVisit; as visit) {
+              <div data-testid="bidder-site-visit">
+                <dt i18n="@@bidder.siteVisit">Pre-bid meeting / site visit</dt>
+                <dd>
+                  <bdi dir="ltr"
+                    >{{ visit.at.local.replace('T', ' ') }} ({{ visit.at.offset }})</bdi
+                  >
+                  — <bdi>{{ visit.place }}</bdi>
+                  @if (visit.mandatory) {
+                    <strong class="tnd-block" i18n="@@bidder.siteVisitMandatory"
+                      >Attendance is mandatory.</strong
+                    >
+                  }
+                  @if (item.siteVisitAttended === true) {
+                    <span class="tnd-block" i18n="@@bidder.siteVisitAttended"
+                      >The buyer recorded your attendance.</span
+                    >
+                  }
+                </dd>
+              </div>
+            }
           </dl>
         </section>
 

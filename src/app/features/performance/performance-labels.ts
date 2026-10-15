@@ -125,6 +125,8 @@ export function eventLabel(kind: CloseoutEventKind | string, version: number): s
       return $localize`:@@performance.eventStarted:Closeout started`;
     case 'Finalized':
       return $localize`:@@performance.eventFinalized:Finalized as version ${version}:version:`;
+    case 'Acknowledged':
+      return $localize`:@@performance.eventAcknowledged:Version ${version}:version: acknowledged by procurement leadership`;
     default:
       return $localize`:@@performance.eventReopened:Version ${version}:version: reopened for correction`;
   }
@@ -275,6 +277,20 @@ export function signedPercent(value: string | null | undefined): string {
   if (!value) return '—';
   if (value.startsWith('-')) return `−${value.slice(1)} %`;
   return /^0(\.0+)?$/.test(value) ? `${value} %` : `+${value} %`;
+}
+
+/** Phase 1 SI-127: a frozen mobilization commitment, "Within 14 days of award". */
+export function mobilizationCommitmentLabel(days: number): string {
+  return $localize`:@@performance.mobilizationWithin:Within ${days}:days: days of award`;
+}
+
+/** Phase 1 SI-127: the actual start against the committed mobilization date. */
+export function mobilizationVarianceLabel(days: number): string {
+  if (days > 0)
+    return $localize`:@@performance.mobilizationLate:Started ${days}:days: days after the committed date`;
+  if (days < 0)
+    return $localize`:@@performance.mobilizationEarly:Started ${-days}:days: days before the committed date`;
+  return $localize`:@@performance.mobilizationOnDate:Started on the committed date`;
 }
 
 export function signedDays(days: number | null | undefined): string {

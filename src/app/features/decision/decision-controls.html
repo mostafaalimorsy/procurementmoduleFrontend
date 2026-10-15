@@ -24,6 +24,15 @@
           }
         </dd>
       </div>
+      @if (c.estimateMissing) {
+        <!-- Phase 1 SI-118 (ADR-184): said, not left blank. -->
+        <div>
+          <dt i18n="@@controls.estimate">Package estimate</dt>
+          <dd class="tnd-attention" i18n="@@controls.estimateMissing">
+            No estimate recorded — the over-budget check did not run.
+          </dd>
+        </div>
+      }
       @if (c.estimate !== null) {
         <div>
           <dt i18n="@@controls.estimate">Package estimate</dt>

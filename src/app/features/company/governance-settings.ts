@@ -1,7 +1,10 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { problemMessage } from '../../core/localization/product-problem';
 import { SessionService } from '../../core/auth/session.service';
+import { tenantRoleLabel } from '../../core/auth/tenant-role-labels';
+import { TenantIdentityApi, TenantUser } from '../identity/tenant-identity.api';
 import {
   CriteriaDeclarationRule,
   GovernanceApi,
@@ -9,6 +12,8 @@ import {
   ProcurementGovernance,
   ValidityBasis,
 } from './company.api';
+
+const EMPTY_ID = '00000000-0000-0000-0000-000000000000';
 
 /**
  * Procurement governance settings (ADR-084): whether the Company Admin also acts in the procurement chain, the competition minimum, the
@@ -146,6 +151,32 @@ import {
             >Four eyes: off by default. A preparer can always mark a shortlist or tender ready, so
             the approver knows it is waiting.</span
           >
+        </div>
+        <!-- Phase 1 SI-025 / SI-118 (ADR-184, P1-D16 B): optional publication gates, off by default. -->
+        <div class="prj-field">
+          <label class="tnd-choice">
+            <input
+              type="checkbox"
+              name="requireCompetitionJustification"
+              [(ngModel)]="requireCompetitionJustification"
+              [disabled]="!settings.canManage || busy()"
+            />
+            <span i18n="@@governance.competitionJustification"
+              >Publishing with fewer invited firms than the minimum needs a written
+              justification</span
+            >
+          </label>
+          <label class="tnd-choice">
+            <input
+              type="checkbox"
+              name="requireEstimate"
+              [(ngModel)]="requireEstimate"
+              [disabled]="!settings.canManage || busy()"
+            />
+            <span i18n="@@governance.requireEstimate"
+              >A tender is published only when its work package has an estimate</span
+            >
+          </label>
         </div>
         <div class="prj-field">
           <label class="tnd-choice">
@@ -402,6 +433,131 @@ import {
             [disabled]="!settings.canManage || busy()"
           />
         </fieldset>
+        <!-- Phase 1 D02 (ADR-183): who approves each high-risk act after the bids are opened. -->
+        <fieldset class="prj-field" data-testid="governance-post-opening">
+          <legend i18n="@@governance.postOpening">Approval after the bids are opened</legend>
+          <span class="prj-hint" i18n="@@governance.postOpeningHelp">
+            Name, from your delegation of authority, the role that approves each act. Until a role
+            is named the act cannot be requested at all, and nobody approves their own request.
+          </span>
+          @for (row of postOpeningRows; track row.key) {
+            <label [for]="'gov-po-' + row.key">{{ row.label }}</label>
+            <select
+              [id]="'gov-po-' + row.key"
+              [name]="'po-' + row.key"
+              [(ngModel)]="approverRoles[row.key]"
+              [disabled]="!settings.canManage || busy()"
+            >
+              <option value="" i18n="@@governance.postOpeningNone">
+                Not set — cannot be requested
+              </option>
+              @for (role of settings.postOpeningApproverRoleOptions ?? []; track role) {
+                <option [value]="role">{{ roleLabel(role) }}</option>
+              }
+            </select>
+          }
+        </fieldset>
+        <!-- Phase 1 SI-124 (ADR-184): emergency direct awards, off until a role and a ratification period are set. -->
+        <fieldset class="prj-fieldset">
+          <legend i18n="@@governance.directAwardLegend">Emergency direct awards</legend>
+          <span class="prj-hint" i18n="@@governance.directAwardHelp">
+            Off until you name who approves them and within how many days they must be ratified. The
+            requester never approves. No value limit is applied.
+          </span>
+          <label for="gov-da-role" i18n="@@governance.directAwardRole">Approved by</label>
+          <select
+            id="gov-da-role"
+            name="daRole"
+            [(ngModel)]="directAwardRole"
+            [disabled]="!settings.canManage || busy()"
+          >
+            <option value="" i18n="@@governance.directAwardOff">
+              Off — direct awards cannot be requested
+            </option>
+            @for (role of settings.postOpeningApproverRoleOptions ?? []; track role) {
+              <option [value]="role">{{ roleLabel(role) }}</option>
+            }
+          </select>
+          @if (directAwardRole) {
+            <label for="gov-da-days" i18n="@@governance.directAwardDays"
+              >Ratify within (days)</label
+            >
+            <input
+              id="gov-da-days"
+              name="daDays"
+              type="number"
+              min="1"
+              max="365"
+              [(ngModel)]="directAwardDays"
+              [disabled]="!settings.canManage || busy()"
+            />
+          }
+        </fieldset>
+        <!-- Phase 1 SI-017 (ADR-184): the weekly digest of privileged events goes to a named second person. -->
+        @if (settings.canManage) {
+          <div class="prj-field">
+            <label for="gov-digest" i18n="@@governance.digest"
+              >Weekly privileged-events digest to</label
+            >
+            <select id="gov-digest" name="digest" [(ngModel)]="digestRecipient" [disabled]="busy()">
+              <option value="" i18n="@@governance.digestNone">Nobody</option>
+              @for (user of activeUsers(); track user.id) {
+                <option [value]="user.id">
+                  {{ user.displayName }} · {{ roleLabel(user.role) }}
+                </option>
+              }
+            </select>
+            <span class="prj-hint" i18n="@@governance.digestHelp">
+              Once a week, how many changes were made to people and access, to governance and
+              policies, and how much data was exported — counts only. Name someone other than the
+              Company Admins, for example the pilot sponsor.
+            </span>
+          </div>
+        }
+        @if (weakened().length) {
+          <div class="prj-note tnd-attention-box" role="alert" data-testid="governance-weakening">
+            <p i18n="@@governance.weakeningIntro">
+              These changes loosen procurement controls. Approvers and Procurement Managers are
+              told, and the reason is kept in the audit log:
+            </p>
+            <ul>
+              @for (field of weakened(); track field) {
+                <li>{{ weakenedLabel(field) }}</li>
+              }
+            </ul>
+            <div class="prj-field">
+              <label for="gov-weakening-reason" i18n="@@governance.weakeningReason"
+                >Reason (required)</label
+              >
+              <textarea
+                id="gov-weakening-reason"
+                name="weakeningReason"
+                rows="2"
+                maxlength="500"
+                [(ngModel)]="weakeningReason"
+              ></textarea>
+            </div>
+            <div class="prj-form-actions">
+              <button
+                class="prj-btn prj-btn--danger"
+                type="button"
+                [disabled]="busy() || weakeningReason.trim().length < 3"
+                (click)="save(settings, true)"
+                i18n="@@governance.weakeningConfirm"
+              >
+                Confirm and save
+              </button>
+              <button
+                class="prj-btn prj-btn--ghost"
+                type="button"
+                (click)="weakened.set([])"
+                i18n="@@common.cancel"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        }
         @if (settings.canManage) {
           <div class="prj-form-actions">
             <button
@@ -432,6 +588,17 @@ import {
 export class GovernanceSettings implements OnInit {
   private readonly api = inject(GovernanceApi);
   private readonly session = inject(SessionService);
+  private readonly identity = inject(TenantIdentityApi);
+  /** Phase 1 SI-017: the fields a save would loosen, as the server named them (empty: none pending). */
+  readonly weakened = signal<readonly string[]>([]);
+  readonly activeUsers = signal<readonly TenantUser[]>([]);
+  weakeningReason = '';
+  digestRecipient = '';
+  requireCompetitionJustification = false;
+  requireEstimate = false;
+  /** Phase 1 SI-124: the direct-award approver role ("" off) and its ratification days (no default: the company chooses). */
+  directAwardRole = '';
+  directAwardDays: number | null = null;
   readonly current = signal<ProcurementGovernance | null>(null);
   readonly busy = signal(false);
   readonly error = signal('');
@@ -458,15 +625,70 @@ export class GovernanceSettings implements OnInit {
   evaluationTargetDays: number | null = null;
   approvalTargetDays: number | null = null;
   closeoutTargetDays: number | null = null;
+  readonly roleLabel = tenantRoleLabel;
+  readonly postOpeningRows = [
+    {
+      key: 'withdrawal',
+      label: $localize`:@@governance.postOpeningWithdrawal:A firm's withdrawal recorded after opening`,
+    },
+    {
+      key: 'exclusion',
+      label: $localize`:@@governance.postOpeningExclusion:A material exclusion of a bid`,
+    },
+    {
+      key: 'cancellation',
+      label: $localize`:@@governance.postOpeningCancellation:Cancelling a tender whose bids are opened`,
+    },
+    {
+      key: 'retender',
+      label: $localize`:@@governance.postOpeningRetender:Closing a tender for re-tender`,
+    },
+  ] as const;
+  approverRoles: Record<'withdrawal' | 'exclusion' | 'cancellation' | 'retender', string> = {
+    withdrawal: '',
+    exclusion: '',
+    cancellation: '',
+    retender: '',
+  };
 
   ngOnInit(): void {
     this.api.get().subscribe({
-      next: (settings) => this.apply(settings),
+      next: (settings) => {
+        this.apply(settings);
+        if (settings.canManage)
+          this.identity.listUsers().subscribe({
+            next: (users) => this.activeUsers.set(users.filter((user) => user.status === 'Active')),
+            error: () => this.activeUsers.set([]),
+          });
+      },
       error: (error: unknown) => this.error.set(problemMessage(error)),
     });
   }
 
-  save(settings: ProcurementGovernance): void {
+  /** Phase 1 SI-017: what each loosened control is called. */
+  weakenedLabel(field: string): string {
+    const labels: Record<string, string> = {
+      minimumCompliantBids: $localize`:@@governance.weak.minBids:Fewer compliant bids required`,
+      overBudgetTolerancePercent: $localize`:@@governance.weak.tolerance:A wider over-budget tolerance`,
+      companyAdminActsInProcurement: $localize`:@@governance.weak.adminActs:Company Admins act in procurement`,
+      requireIndependentShortlistApproval: $localize`:@@governance.weak.shortlist:Shortlist approval no longer independent`,
+      requireIndependentPublish: $localize`:@@governance.weak.publish:Publication no longer independent`,
+      fastPath: $localize`:@@governance.weak.fastPath:The small-value fast path opened or raised`,
+      minimumBidPeriodHours: $localize`:@@governance.weak.bidPeriod:A shorter minimum bid period`,
+      outsidePortalBidsAllowed: $localize`:@@governance.weak.outside:Bids received outside the portal allowed`,
+      criteriaDeclaration: $localize`:@@governance.weak.criteria:Fewer tenders declare their criteria`,
+      minimumScorecardsPerBid: $localize`:@@governance.weak.panel:A smaller evaluation panel`,
+      divergenceThresholdPoints: $localize`:@@governance.weak.divergence:A wider divergence threshold`,
+      moderationRequired: $localize`:@@governance.weak.moderation:Moderation no longer required`,
+      pricingBasisRequired: $localize`:@@governance.weak.pricingBasis:The VAT basis no longer required`,
+      requireCompetitionJustificationAtPublication: $localize`:@@governance.weak.competitionJustification:No justification required below the competition minimum`,
+      requireEstimateBeforePublication: $localize`:@@governance.weak.estimate:No estimate required before publication`,
+      directAward: $localize`:@@governance.weak.directAward:Emergency direct awards allowed, or longer to ratify them`,
+    };
+    return labels[field] ?? field;
+  }
+
+  save(settings: ProcurementGovernance, confirmed = false): void {
     if (this.busy()) return;
     this.busy.set(true);
     this.error.set('');
@@ -495,6 +717,19 @@ export class GovernanceSettings implements OnInit {
         evaluationTargetDays: this.target(this.evaluationTargetDays),
         approvalTargetDays: this.target(this.approvalTargetDays),
         closeoutTargetDays: this.target(this.closeoutTargetDays),
+        postOpeningWithdrawalApproverRole: this.approverRoles.withdrawal,
+        postOpeningExclusionApproverRole: this.approverRoles.exclusion,
+        postOpeningCancellationApproverRole: this.approverRoles.cancellation,
+        retenderClosureApproverRole: this.approverRoles.retender,
+        requireCompetitionJustificationAtPublication: this.requireCompetitionJustification,
+        requireEstimateBeforePublication: this.requireEstimate,
+        directAwardApproverRole: this.directAwardRole,
+        directAwardRatificationDays: this.directAwardRole
+          ? Number(this.directAwardDays) || null
+          : null,
+        weakeningConfirmed: confirmed,
+        weakeningReason: confirmed ? this.weakeningReason.trim() : null,
+        privilegedDigestRecipientId: this.digestRecipient || EMPTY_ID,
         version: settings.version,
       })
       .subscribe({
@@ -502,6 +737,8 @@ export class GovernanceSettings implements OnInit {
           const rightsChanged =
             saved.companyAdminActsInProcurement !== settings.companyAdminActsInProcurement;
           this.apply(saved);
+          this.weakened.set([]);
+          this.weakeningReason = '';
           this.busy.set(false);
           this.notice.set($localize`:@@governance.saved:Governance settings saved.`);
           // What this session may do changes with the Company Admin setting: read the session again so navigation follows it.
@@ -509,6 +746,16 @@ export class GovernanceSettings implements OnInit {
         },
         error: (error: unknown) => {
           this.busy.set(false);
+          // Phase 1 SI-017: loosening a control needs a confirmation and a reason; ask for them here.
+          const body = error instanceof HttpErrorResponse ? error.error : null;
+          if (body?.code === 'company.governance_weakening_unconfirmed') {
+            this.weakened.set(
+              String(body.parameters?.fields ?? '')
+                .split(',')
+                .filter(Boolean),
+            );
+            return;
+          }
           this.error.set(problemMessage(error));
         },
       });
@@ -539,6 +786,18 @@ export class GovernanceSettings implements OnInit {
     this.evaluationTargetDays = settings.evaluationTargetDays ?? null;
     this.approvalTargetDays = settings.approvalTargetDays ?? null;
     this.closeoutTargetDays = settings.closeoutTargetDays ?? null;
+    this.digestRecipient = settings.privilegedDigestRecipientId ?? '';
+    this.requireCompetitionJustification =
+      settings.requireCompetitionJustificationAtPublication ?? false;
+    this.requireEstimate = settings.requireEstimateBeforePublication ?? false;
+    this.directAwardRole = settings.directAwardApproverRole ?? '';
+    this.directAwardDays = settings.directAwardRatificationDays ?? null;
+    this.approverRoles = {
+      withdrawal: settings.postOpeningWithdrawalApproverRole ?? '',
+      exclusion: settings.postOpeningExclusionApproverRole ?? '',
+      cancellation: settings.postOpeningCancellationApproverRole ?? '',
+      retender: settings.retenderClosureApproverRole ?? '',
+    };
   }
 
   /** CF-010: an empty target is sent as 0 (none). */

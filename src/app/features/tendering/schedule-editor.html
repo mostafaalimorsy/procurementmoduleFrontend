@@ -2,7 +2,7 @@
   <p class="prj-hint" i18n="@@schedule.hint">
     Optional. Issue the bill of quantities bidders price item by item. Leave it empty for a lump-sum
     tender. Quantities have at most three decimals and are never rounded; each amount a bidder sees
-    is exactly quantity × rate.
+    is quantity × rate rounded once to the currency's decimals (halves away from zero).
   </p>
   @if (editable()) {
     <div class="prj-form-actions">

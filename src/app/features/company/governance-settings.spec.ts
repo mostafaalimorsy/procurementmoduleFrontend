@@ -82,6 +82,19 @@ describe('procurement governance settings (ADR-084)', () => {
       evaluationTargetDays: 0,
       approvalTargetDays: 0,
       closeoutTargetDays: 0,
+      // Phase 1 D02 (ADR-183): no post-opening approver until one is named ("" = none: the act cannot be requested).
+      postOpeningWithdrawalApproverRole: '',
+      postOpeningExclusionApproverRole: '',
+      postOpeningCancellationApproverRole: '',
+      retenderClosureApproverRole: '',
+      // Phase 1 SI-017 / SI-025 / SI-118 / SI-124 (ADR-184): no digest recipient, gates off, direct awards off.
+      privilegedDigestRecipientId: '00000000-0000-0000-0000-000000000000',
+      requireCompetitionJustificationAtPublication: false,
+      requireEstimateBeforePublication: false,
+      directAwardApproverRole: '',
+      directAwardRatificationDays: null,
+      weakeningConfirmed: false,
+      weakeningReason: null,
       version: '00000000-0000-0000-0000-000000000000',
     });
     request.flush(
@@ -135,6 +148,43 @@ describe('procurement governance settings (ADR-084)', () => {
       closeoutTargetDays: 30,
     });
     request.flush(defaults({ evaluationTargetDays: 10, closeoutTargetDays: 30, version: 'v2' }));
+  });
+
+  it('names the approver role of each post-opening act from the award-approving roles, or none (Phase 1 D02)', async () => {
+    const { http, fixture, element } = render(
+      defaults({
+        postOpeningCancellationApproverRole: 'ProcurementManager',
+        postOpeningApproverRoleOptions: ['ProcurementManager', 'ApproverDirector'],
+      }),
+    );
+    await settle();
+    fixture.detectChanges();
+    expect(text(element)).toContain('Approval after the bids are opened');
+    const exclusion = element.querySelector('#gov-po-exclusion') as HTMLSelectElement;
+    // "Not set" plus the two roles that approve awards — never Company Admin.
+    expect(Array.from(exclusion.options).map((option) => option.value)).toEqual([
+      '',
+      'ProcurementManager',
+      'ApproverDirector',
+    ]);
+    exclusion.value = 'ApproverDirector';
+    exclusion.dispatchEvent(new Event('change'));
+    const cancellation = element.querySelector('#gov-po-cancellation') as HTMLSelectElement;
+    expect(cancellation.value).toBe('ProcurementManager');
+    cancellation.value = '';
+    cancellation.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    (element.querySelector('.prj-form-actions button') as HTMLButtonElement).click();
+    const request = http.expectOne('/api/v1/company/governance');
+    expect(request.request.body).toMatchObject({
+      postOpeningWithdrawalApproverRole: '',
+      postOpeningExclusionApproverRole: 'ApproverDirector',
+      postOpeningCancellationApproverRole: '',
+      retenderClosureApproverRole: '',
+    });
+    request.flush(
+      defaults({ postOpeningExclusionApproverRole: 'ApproverDirector', version: 'v2' }),
+    );
   });
 
   it('is read-only for members who cannot manage it', async () => {

@@ -10,6 +10,7 @@ import {
   AUDIT_AREAS,
   AuditApi,
   AuditArea,
+  AuditChainStatus,
   AuditEntry,
   AuditFacets,
   AuditFilter,
@@ -40,6 +41,7 @@ export class AuditLogPage implements OnInit {
   readonly areas = AUDIT_AREAS;
   readonly result = signal<Paged<AuditEntry> | null>(null);
   readonly facets = signal<AuditFacets | null>(null);
+  readonly chain = signal<AuditChainStatus | null>(null);
   readonly loading = signal(true);
   readonly error = signal('');
   readonly exporting = signal(false);
@@ -59,6 +61,9 @@ export class AuditLogPage implements OnInit {
     this.api
       .facets()
       .subscribe({ next: (facets) => this.facets.set(facets), error: () => this.facets.set(null) });
+    this.api
+      .chain()
+      .subscribe({ next: (chain) => this.chain.set(chain), error: () => this.chain.set(null) });
     this.load();
   }
 

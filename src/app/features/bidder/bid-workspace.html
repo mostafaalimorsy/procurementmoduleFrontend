@@ -478,11 +478,60 @@
             <fieldset class="prj-fieldset" id="bid-schedule">
               <legend i18n="@@bidWorkspace.scheduleLegend">Price schedule</legend>
               <p class="prj-hint" i18n="@@bidWorkspace.scheduleHint">
-                Enter a rate for each item. Each amount is exactly quantity × rate in the tender
-                currency — nothing is rounded, so a rate whose amount does not fall on the
-                currency's decimals must be adjusted. Optional items count only if you price them;
-                they are never part of the total.
+                Enter a rate for each item. Each amount is quantity × rate, rounded once to the
+                tender currency's decimals (halves away from zero, as a spreadsheet's ROUND), and
+                the total is the sum of the rounded amounts; your rates are kept exactly as you
+                enter them. Optional items may be priced for information; they are never part of the
+                total.
               </p>
+              <!-- Phase 1 SI-030: price in Excel, then read the rates back (checked; saved only with the draft). -->
+              @if (sheetSupported()) {
+                <div class="prj-actions" data-testid="bid-schedule-sheet">
+                  <button
+                    class="prj-btn prj-btn--ghost"
+                    type="button"
+                    (click)="downloadSchedule()"
+                    i18n="@@bidWorkspace.downloadSchedule"
+                  >
+                    Download the schedule (Excel)
+                  </button>
+                  @if (editable()) {
+                    <label class="prj-btn prj-btn--ghost">
+                      <span i18n="@@bidWorkspace.uploadRates">Read rates from the workbook</span>
+                      <input
+                        type="file"
+                        accept=".xlsx,.csv"
+                        class="prj-visually-hidden"
+                        (change)="readRates($event)"
+                      />
+                    </label>
+                  }
+                </div>
+                @if (ratesError()) {
+                  <p class="prj-error-text" role="alert">{{ ratesError() }}</p>
+                }
+                @if (ratesImport(); as read) {
+                  <p
+                    class="prj-hint"
+                    role="status"
+                    data-testid="bid-rates-read"
+                    i18n="@@bidWorkspace.ratesRead"
+                  >
+                    {{ read.rates.length }} rate(s) can be put into your bid;
+                    {{ read.issues.length }} row(s) refused.
+                  </p>
+                  @if (read.canApply) {
+                    <button
+                      class="prj-btn"
+                      type="button"
+                      (click)="applyRates()"
+                      i18n="@@bidWorkspace.applyRates"
+                    >
+                      Put these rates into my bid
+                    </button>
+                  }
+                }
+              }
               <div
                 class="prj-table-wrap"
                 role="region"
@@ -562,10 +611,6 @@
                         <td>
                           @if (price.amount) {
                             <bdi dir="ltr" class="bw-amount">{{ amount(price.amount) }}</bdi>
-                          } @else if (price.problem === 'inexact') {
-                            <span class="prj-error-text" i18n="@@bidWorkspace.itemInexact"
-                              >Not an exact {{ currency() }} amount — adjust the rate</span
-                            >
                           } @else if (price.problem === 'range') {
                             <span class="prj-error-text" i18n="@@bidWorkspace.itemTooLarge"
                               >Too large</span
@@ -603,7 +648,9 @@
             <legend i18n="@@bidField.lines">Price breakdown</legend>
             @if (schedule().length) {
               <p class="prj-hint" i18n="@@bidWorkspace.ownLinesHint">
-                Optional. Lines of your own (extras, alternatives) are added to the schedule total.
+                Optional. Extra lines of your own are added to the schedule total. Describe
+                alternatives, options and discounts in your deviations — they are never added to the
+                total.
               </p>
             } @else {
               <p class="prj-hint" i18n="@@bidWorkspace.linesHint">
@@ -770,6 +817,35 @@
               @if (fieldError('durationDays')) {
                 <span id="bid-error-durationDays" class="prj-error-text">{{
                   fieldError('durationDays')
+                }}</span>
+              }
+            </div>
+            <!-- Phase 1 SI-127: the mobilization period, optional unless the tender requires it. -->
+            <div class="prj-field">
+              @if (invitation().mobilizationRequired) {
+                <label for="bid-mobilization" i18n="@@bidWorkspace.mobilizationLabelRequired"
+                  >Mobilize within (days of award, required)</label
+                >
+              } @else {
+                <label for="bid-mobilization" i18n="@@bidWorkspace.mobilizationLabel"
+                  >Mobilize within (days of award)</label
+                >
+              }
+              <input
+                id="bid-mobilization"
+                dir="ltr"
+                inputmode="numeric"
+                [attr.aria-required]="invitation().mobilizationRequired ? 'true' : null"
+                [disabled]="!editable()"
+                [(ngModel)]="form.mobilizationDays"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="edited()"
+                [attr.aria-invalid]="fieldError('mobilizationDays') ? 'true' : null"
+                [attr.aria-describedby]="describedBy('mobilizationDays')"
+              />
+              @if (fieldError('mobilizationDays')) {
+                <span id="bid-error-mobilizationDays" class="prj-error-text">{{
+                  fieldError('mobilizationDays')
                 }}</span>
               }
             </div>
@@ -1184,6 +1260,10 @@
           <div>
             <dt i18n="@@bidField.durationDays">Proposed duration</dt>
             <dd>{{ form.durationDays || '—' }}</dd>
+          </div>
+          <div>
+            <dt i18n="@@bidField.mobilizationDays">Mobilization (days from award)</dt>
+            <dd>{{ form.mobilizationDays || '—' }}</dd>
           </div>
           <div>
             <dt i18n="@@bidField.warrantyMonths">Warranty</dt>

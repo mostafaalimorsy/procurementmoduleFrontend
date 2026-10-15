@@ -217,7 +217,8 @@
   @if (base.mobilizationCommitment) {
     <h4 i18n="@@award.mobilization">Mobilization commitment</h4>
     <p class="ev-prose">
-      <bdi>{{ base.mobilizationCommitment }}</bdi>
+      <!-- Phase 1 SI-127: the stated period is frozen as whole days from award. -->
+      <bdi>{{ mobilizationText(base.mobilizationCommitment) }}</bdi>
     </p>
   }
   @if (base.technicalApproach) {
