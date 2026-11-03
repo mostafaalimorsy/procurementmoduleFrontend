@@ -74,6 +74,11 @@ describe('Tenant sign-in with an authenticator (CF-065)', () => {
     expect(element.querySelector('[data-testid="mfa-secret"]')!.textContent).toContain(
       'JBSW Y3DP EHPK 3PXP',
     );
+    // P2-1 (MFA QR): the provisioning URI is also rendered as a scannable QR (client-side SVG);
+    // the manual key above stays available as a fallback.
+    const qr = element.querySelector('[data-testid="mfa-qr"]');
+    expect(qr).not.toBeNull();
+    expect(qr!.querySelector('svg')).not.toBeNull();
     expect(navigate).not.toHaveBeenCalled();
     fixture.componentInstance.code = '123456';
     fixture.componentInstance.verify(fixture.componentInstance.step()!);

@@ -208,7 +208,7 @@ describe('My work in Arabic (CF-010)', () => {
     const element = panel.nativeElement as HTMLElement;
     const links = [...element.querySelectorAll('.my-work-list li > a')];
     expect(links.map((link) => [text(link).trim(), link.getAttribute('href')])).toEqual([
-      ['أُغلقت جولة — أدرج ردودها في التقييم', '/tenders/t7/evaluation'],
+      ['أُغلقت جولة — ضمّ ردودها إلى التقييم', '/tenders/t7/evaluation'],
       ['أعيد فتح الإغلاق للتصحيح — صحّحه واعتمده مجددًا', '/closeouts/a5'],
     ]);
     const shown = text(element);

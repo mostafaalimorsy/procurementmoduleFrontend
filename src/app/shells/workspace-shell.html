@@ -187,6 +187,14 @@
                         i18n="@@nav.audit"
                         >Audit log</a
                       >
+                      <!-- Feature M/N: the security alerts and monitoring thresholds, beside the audit log. -->
+                      <a
+                        routerLink="/admin/security"
+                        [class.is-active]="section() === 'security'"
+                        [attr.aria-current]="section() === 'security' ? 'page' : null"
+                        i18n="@@nav.security"
+                        >Security &amp; audit</a
+                      >
                     }
                     <!-- CF-012 (B-012-2): the pilot metrics sit under Settings, after the audit log. -->
                     @if (showPilotMetrics()) {

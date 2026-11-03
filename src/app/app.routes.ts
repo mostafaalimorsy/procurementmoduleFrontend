@@ -232,6 +232,15 @@ export const routes: Routes = [
         title: $localize`:@@title.audit:Audit log | ${product}:product:`,
         loadComponent: () => import('./features/audit/audit-log').then((m) => m.AuditLogPage),
       },
+      // Feature M/N: the company's security alerts and monitoring thresholds (Company Admin).
+      {
+        path: 'admin/security',
+        canActivate: [permissionGuard],
+        data: { permission: AUDIT_PERMISSION },
+        title: $localize`:@@title.security:Security & audit | ${product}:product:`,
+        loadComponent: () =>
+          import('./features/company/security-audit').then((m) => m.SecurityAudit),
+      },
       {
         path: 'admin/users',
         canActivate: [permissionGuard],

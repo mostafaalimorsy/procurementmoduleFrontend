@@ -189,10 +189,29 @@ export interface ProcurementGovernance {
   /** Phase 1 SI-124: who approves an emergency direct award and within how many days it is ratified (null: direct awards off). */
   readonly directAwardApproverRole?: string | null;
   readonly directAwardRatificationDays?: number | null;
+  /** Feature B: the per-company daily digest of each member's overdue work. */
+  readonly companyTimeZoneId?: string | null;
+  readonly dailyDigestEnabled?: boolean;
+  readonly digestCadence?: DigestCadence;
+  readonly digestHourLocal?: number | null;
+  readonly digestSuppressEmpty?: boolean;
+  readonly timeZoneOptions?: readonly string[] | null;
+  /** Feature E/F: the company's overdue-work escalation ladder (empty = the built-in Procurement-Manager default). */
+  readonly escalationTiers?: readonly EscalationTier[] | null;
+  readonly escalationRoleOptions?: readonly string[] | null;
   readonly isDefault: boolean;
   readonly canManage: boolean;
   readonly updatedAtUtc: string | null;
   readonly version: string;
+}
+
+/** Feature B: which days the daily digest sends. */
+export type DigestCadence = 'Daily' | 'Weekdays' | 'Weekly';
+
+/** Feature E/F: one tier of the escalation ladder — once an overdue item is this many days past target, this role is told. */
+export interface EscalationTier {
+  readonly afterDays: number;
+  readonly role: string;
 }
 
 export interface ProcurementGovernanceUpdate {
@@ -234,6 +253,14 @@ export interface ProcurementGovernanceUpdate {
   /** Phase 1 SI-124: "" turns direct awards off; otherwise a role with its ratification days. */
   readonly directAwardApproverRole: string;
   readonly directAwardRatificationDays: number | null;
+  /** Feature B: null keeps the digest schedule; "" clears the timezone. Enabling the digest needs a timezone and an hour. */
+  readonly companyTimeZoneId?: string | null;
+  readonly dailyDigestEnabled?: boolean | null;
+  readonly digestCadence?: DigestCadence | null;
+  readonly digestHourLocal?: number | null;
+  readonly digestSuppressEmpty?: boolean | null;
+  /** Feature E/F: null keeps the ladder; a list (empty restores the default) replaces it. */
+  readonly escalationTiers?: readonly EscalationTier[] | null;
   readonly version: string;
 }
 
@@ -251,5 +278,94 @@ export class GovernanceApi {
 
   update(request: ProcurementGovernanceUpdate): Observable<ProcurementGovernance> {
     return this.http.put<ProcurementGovernance>('/api/v1/company/governance', request);
+  }
+}
+
+/** Feature M: how serious a raised alert is, and where it stands as the company works it. */
+export type SecurityAlertSeverity = 'Low' | 'Medium' | 'High';
+export type SecurityAlertStatus = 'Open' | 'Acknowledged' | 'Resolved';
+
+/** Feature M: a raised security alert as the Security & Audit screen lists it (no secret, no amount). */
+export interface SecurityAlert {
+  readonly id: string;
+  readonly rule: string;
+  readonly severity: SecurityAlertSeverity;
+  readonly detectedAtUtc: string;
+  readonly windowFromUtc: string;
+  readonly windowToUtc: string;
+  readonly count: number;
+  readonly subjectRef: string | null;
+  readonly status: SecurityAlertStatus;
+  readonly acknowledgedBy: string | null;
+  readonly acknowledgedAtUtc: string | null;
+  readonly resolvedBy: string | null;
+  readonly resolvedAtUtc: string | null;
+  readonly resolutionNote: string | null;
+  readonly version: string;
+}
+
+export interface SecurityAlertPage {
+  readonly alerts: readonly SecurityAlert[];
+  readonly total: number;
+  readonly openCount: number;
+}
+
+/** Feature N: the company's security-monitoring thresholds. The repeated-failed-sign-in rule is mandatory (no enabled flag). */
+export interface SecurityAlertPolicy {
+  readonly loginFailedThreshold: number;
+  readonly loginFailedWindowMinutes: number;
+  readonly exportBurstEnabled: boolean;
+  readonly exportThreshold: number;
+  readonly exportWindowMinutes: number;
+  readonly downloadBurstEnabled: boolean;
+  readonly downloadThreshold: number;
+  readonly downloadWindowMinutes: number;
+  readonly isDefault: boolean;
+  readonly canManage: boolean;
+  readonly updatedAtUtc: string | null;
+  readonly version: string;
+}
+
+export interface SecurityAlertPolicyUpdate {
+  readonly version: string;
+  readonly loginFailedThreshold?: number;
+  readonly loginFailedWindowMinutes?: number;
+  readonly exportBurstEnabled?: boolean;
+  readonly exportThreshold?: number;
+  readonly exportWindowMinutes?: number;
+  readonly downloadBurstEnabled?: boolean;
+  readonly downloadThreshold?: number;
+  readonly downloadWindowMinutes?: number;
+}
+
+export const SECURITY_AUDIT_PERMISSION = 'Audit.View';
+
+@Injectable({ providedIn: 'root' })
+export class SecurityApi {
+  private readonly http = inject(HttpClient);
+
+  alerts(openOnly: boolean): Observable<SecurityAlertPage> {
+    return this.http.get<SecurityAlertPage>(`/api/v1/company/security-alerts?openOnly=${openOnly}`);
+  }
+
+  acknowledge(id: string, version: string): Observable<SecurityAlert> {
+    return this.http.post<SecurityAlert>(`/api/v1/company/security-alerts/${id}/acknowledge`, {
+      version,
+    });
+  }
+
+  resolve(id: string, version: string, note: string | null): Observable<SecurityAlert> {
+    return this.http.post<SecurityAlert>(`/api/v1/company/security-alerts/${id}/resolve`, {
+      version,
+      note,
+    });
+  }
+
+  monitoring(): Observable<SecurityAlertPolicy> {
+    return this.http.get<SecurityAlertPolicy>('/api/v1/company/security-monitoring');
+  }
+
+  updateMonitoring(request: SecurityAlertPolicyUpdate): Observable<SecurityAlertPolicy> {
+    return this.http.put<SecurityAlertPolicy>('/api/v1/company/security-monitoring', request);
   }
 }

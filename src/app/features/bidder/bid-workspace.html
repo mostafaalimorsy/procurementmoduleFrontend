@@ -46,6 +46,13 @@
         <strong
           ><bdi>{{ deadline() }}</bdi></strong
         >
+        @if (deadlineLocal(); as localTime) {
+          <span class="bw-deadline-local prj-hint" data-testid="deadline-local">
+            <span i18n="@@bidWorkspace.deadlineLocal">In your local time</span>:&ngsp;<bdi>{{
+              localTime
+            }}</bdi>
+          </span>
+        }
         @if (remaining(); as left) {
           <span class="bw-countdown">
             <span i18n="@@bidder.timeLeft">Time left:</span>&ngsp;

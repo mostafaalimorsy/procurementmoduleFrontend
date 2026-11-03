@@ -164,3 +164,24 @@ input:focus {
     box-shadow: 0.6rem 0.6rem 0 color-mix(in srgb, var(--color-accent) 9%, transparent);
   }
 }
+
+// P2-1 (MFA QR): bound the scannable enrolment QR and give it a light surround.
+.mfa-qr {
+  width: 176px;
+  max-width: 100%;
+  padding: 8px;
+  margin: 0.5rem 0;
+  background: #fff;
+  border-radius: 8px;
+
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+}
+
+.mfa-qr-hint {
+  font-size: 0.875rem;
+  opacity: 0.85;
+}

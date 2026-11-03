@@ -32,6 +32,7 @@ import {
   ScheduleItem,
   VAT_TREATMENTS,
   VatTreatment,
+  browserTimeZone,
   describeLocal,
   fileSize,
 } from '../tendering/tendering.api';
@@ -177,6 +178,18 @@ export class BidWorkspace implements OnInit {
   readonly deadline = computed(() =>
     describeLocal(this.invitation().submissionDeadline, this.invitation().timeZoneId, this.locale),
   );
+  /**
+   * P3-4: the same deadline in the bidder's own browser time zone, shown only when it differs
+   * from the tender's zone (so a firm in a different region sees its local time without confusion).
+   */
+  readonly deadlineLocal = computed(() => {
+    const invitation = this.invitation();
+    const localZone = browserTimeZone();
+    if (!localZone || localZone === invitation.timeZoneId) {
+      return null;
+    }
+    return describeLocal(invitation.submissionDeadline, localZone, this.locale);
+  });
   /** Whole days, hours and minutes left by the server's clock (this device's clock corrected by the offset). */
   readonly remaining = computed(() => {
     // Part 9: a tender the buyer closed early has no time left, whatever its deadline says.

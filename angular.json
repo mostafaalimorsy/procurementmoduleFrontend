@@ -31,7 +31,8 @@
             ],
             "styles": ["src/styles.scss"],
             "polyfills": ["@angular/localize/init"],
-            "i18nMissingTranslation": "error"
+            "i18nMissingTranslation": "error",
+            "allowedCommonJsDependencies": ["qrcode-generator"]
           },
           "configurations": {
             "production": {

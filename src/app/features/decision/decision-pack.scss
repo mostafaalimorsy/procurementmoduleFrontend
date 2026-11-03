@@ -70,8 +70,32 @@ section {
   }
 }
 
+// Feature J: an explicit confidentiality classification on the generated pack.
+.pack-confidential {
+  margin: 0 0 1rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--color-caution, #7a5a00);
+  border-radius: 6px;
+  color: var(--color-caution, #7a5a00);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
 @media print {
+  // Feature J: consistent printable margins. Per-page page numbers come from the
+  // browser's own print dialog — the product has no server-side PDF stack (no new dependency).
+  @page {
+    margin: 16mm;
+  }
+
   [data-print='hide'] {
     display: none !important;
+  }
+
+  .pack-confidential {
+    border-color: #000;
+    color: #000;
   }
 }

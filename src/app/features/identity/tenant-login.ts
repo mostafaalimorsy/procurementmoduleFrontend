@@ -1,6 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import qrcode from 'qrcode-generator';
 import { safeReturnUrl } from '../../core/auth/return-url';
 import { knownProductProblem } from '../../core/localization/product-problem';
 import { SessionService, TenantMfaChallenge } from '../../core/auth/session.service';
@@ -66,6 +68,19 @@ import { SessionService, TenantMfaChallenge } from '../../core/auth/session.serv
               on the phone that has the app, then enter the code it shows. The key is shown only
               now.
             </p>
+            @if (qrCode(); as qr) {
+              <div
+                class="mfa-qr"
+                role="img"
+                i18n-aria-label="@@mfa.qrAlt"
+                aria-label="QR code to set up your authenticator app"
+                data-testid="mfa-qr"
+                [innerHTML]="qr"
+              ></div>
+              <p class="mfa-qr-hint" i18n="@@mfa.qrHint">
+                Scan this with your authenticator app, or add the key below manually.
+              </p>
+            }
             <p class="ltr-token" dir="ltr" data-testid="mfa-secret">
               <strong>{{ grouped(current.secret ?? '') }}</strong>
             </p>
@@ -174,6 +189,25 @@ export class TenantLogin {
   code = '';
   readonly step = signal<TenantMfaChallenge | null>(null);
   readonly recoveryCodes = signal<readonly string[] | null>(null);
+  private readonly sanitizer = inject(DomSanitizer);
+  /**
+   * P2-1 (MFA QR): render the enrolment otpauth URI as a scannable QR, client-side only.
+   * Encodes the existing provisioning URI (no change to the TOTP algorithm or secret handling);
+   * the secret is never logged. The grouped manual key below stays available as a fallback.
+   */
+  protected readonly qrCode = computed<SafeHtml | null>(() => {
+    const current = this.step();
+    const uri = current?.status === 'enrollment_required' ? current.provisioningUri : undefined;
+    if (!uri) {
+      return null;
+    }
+    const qr = qrcode(0, 'M');
+    qr.addData(uri);
+    qr.make();
+    return this.sanitizer.bypassSecurityTrustHtml(
+      qr.createSvgTag({ cellSize: 4, margin: 2, scalable: true }),
+    );
+  });
   protected readonly grouped = (secret: string) => secret.replace(/(.{4})/g, '$1 ').trim();
   readonly busy = signal(false);
   readonly error = signal('');

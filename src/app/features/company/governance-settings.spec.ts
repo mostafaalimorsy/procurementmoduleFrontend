@@ -93,6 +93,14 @@ describe('procurement governance settings (ADR-084)', () => {
       requireEstimateBeforePublication: false,
       directAwardApproverRole: '',
       directAwardRatificationDays: null,
+      // Feature B: the digest schedule, off by default (no timezone, no hour, cadence daily, suppress-empty on).
+      companyTimeZoneId: '',
+      dailyDigestEnabled: false,
+      digestCadence: 'Daily',
+      digestHourLocal: null,
+      digestSuppressEmpty: true,
+      // Feature E/F: the escalation ladder, empty (the built-in default).
+      escalationTiers: [],
       weakeningConfirmed: false,
       weakeningReason: null,
       version: '00000000-0000-0000-0000-000000000000',

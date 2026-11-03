@@ -590,7 +590,9 @@ describe('Workspace shell', () => {
     const settings = [...nav.querySelectorAll('details.nav-settings a')].map((a) =>
       a.getAttribute('href'),
     );
-    expect(settings.indexOf('/pilot-metrics')).toBe(settings.indexOf('/admin/audit') + 1);
+    // Feature M/N: the Security & audit link sits beside the audit log, so pilot metrics follow it.
+    expect(settings.indexOf('/admin/security')).toBe(settings.indexOf('/admin/audit') + 1);
+    expect(settings.indexOf('/pilot-metrics')).toBe(settings.indexOf('/admin/security') + 1);
   });
 
   it('marks Closeouts as the area of the past outcomes, without claiming the page (CF-012 AC2)', async () => {

@@ -6,6 +6,7 @@ import { AUTOSAVE_DELAY_MS, BidWorkspace } from './bid-workspace';
 import { Bid, BidderInvitation, EMPTY_BID } from './bidder.api';
 import { bidView, invitationView } from './bid-workspace.spec.fixtures';
 import { bidGapLabel } from '../../core/localization/labels';
+import { browserTimeZone } from '../../core/localization/zoned-time';
 
 const text = (element: HTMLElement) => (element.textContent ?? '').replace(/\s+/g, ' ');
 
@@ -59,6 +60,17 @@ describe('bid workspace', () => {
     expect(element.querySelector('.bw-money__code')?.textContent).toBe('QAR');
     expect(element.querySelector('select')).toBeNull();
     expect(content).toContain('Submission deadline');
+  });
+
+  it('shows the deadline in the bidder local time when the tender is in another zone, and omits it otherwise (P3-4)', () => {
+    const localZone = browserTimeZone();
+    const otherZone = localZone === 'UTC' ? 'Asia/Qatar' : 'UTC';
+    const elsewhere = render(bidView(), { ...invitationView(), timeZoneId: otherZone });
+    expect(elsewhere.element.querySelector('[data-testid="deadline-local"]')).not.toBeNull();
+    expect(text(elsewhere.element)).toContain('In your local time');
+    TestBed.resetTestingModule();
+    const sameZone = render(bidView(), { ...invitationView(), timeZoneId: localZone });
+    expect(sameZone.element.querySelector('[data-testid="deadline-local"]')).toBeNull();
   });
 
   it('asks for the VAT basis and requested terms only when the tender states them, and saves the answers as typed (CF-055)', () => {

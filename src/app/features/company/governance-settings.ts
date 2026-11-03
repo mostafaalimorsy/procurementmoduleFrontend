@@ -7,6 +7,8 @@ import { tenantRoleLabel } from '../../core/auth/tenant-role-labels';
 import { TenantIdentityApi, TenantUser } from '../identity/tenant-identity.api';
 import {
   CriteriaDeclarationRule,
+  DigestCadence,
+  EscalationTier,
   GovernanceApi,
   OutcomeNoticeTiming,
   ProcurementGovernance,
@@ -559,6 +561,126 @@ const EMPTY_ID = '00000000-0000-0000-0000-000000000000';
             </fieldset>
           </fieldset>
         </details>
+        <!-- Feature B/E/F: the company's daily digest and its overdue-work escalation ladder. -->
+        <details class="gov-more">
+          <summary i18n="@@governance.notificationsSummary">Notifications and escalations</summary>
+          <fieldset class="prj-fieldset">
+            <legend i18n="@@governance.digestLegend">Daily work digest</legend>
+            <span class="prj-hint" i18n="@@governance.digestHelp">
+              One email a day to each member summarising their overdue work, instead of one email
+              per item. Choose the timezone that sets your local day and the hour it is sent.
+            </span>
+            <label class="gov-check">
+              <input
+                type="checkbox"
+                name="digestEnabled"
+                [(ngModel)]="dailyDigestEnabled"
+                [disabled]="!settings.canManage || busy()"
+              />
+              <span i18n="@@governance.digestEnable">Send a daily digest</span>
+            </label>
+            <label for="gov-digest-tz" i18n="@@governance.digestTimezone">Company timezone</label>
+            <select
+              id="gov-digest-tz"
+              name="digestTz"
+              [(ngModel)]="companyTimeZoneId"
+              [disabled]="!settings.canManage || busy()"
+            >
+              <option value="" i18n="@@governance.digestTimezoneNone">Not set</option>
+              @for (zone of settings.timeZoneOptions ?? []; track zone) {
+                <option [value]="zone">{{ zone }}</option>
+              }
+            </select>
+            <label for="gov-digest-hour" i18n="@@governance.digestHour">Send at (hour, 0–23)</label>
+            <input
+              id="gov-digest-hour"
+              name="digestHour"
+              type="number"
+              min="0"
+              max="23"
+              [(ngModel)]="digestHourLocal"
+              [disabled]="!settings.canManage || busy()"
+            />
+            <label for="gov-digest-cadence" i18n="@@governance.digestCadenceLabel"
+              >Which days</label
+            >
+            <select
+              id="gov-digest-cadence"
+              name="digestCadence"
+              [(ngModel)]="digestCadence"
+              [disabled]="!settings.canManage || busy()"
+            >
+              <option value="Daily" i18n="@@governance.cadenceDaily">Every day</option>
+              <option value="Weekdays" i18n="@@governance.cadenceWeekdays">Weekdays</option>
+              <option value="Weekly" i18n="@@governance.cadenceWeekly">Mondays</option>
+            </select>
+            <label class="gov-check">
+              <input
+                type="checkbox"
+                name="digestSuppress"
+                [(ngModel)]="digestSuppressEmpty"
+                [disabled]="!settings.canManage || busy()"
+              />
+              <span i18n="@@governance.digestSuppress">Skip members with nothing due</span>
+            </label>
+          </fieldset>
+          <fieldset class="prj-fieldset">
+            <legend i18n="@@governance.escalationLegend">Overdue-work escalation</legend>
+            <span class="prj-hint" i18n="@@governance.escalationHelp">
+              When overdue work is still open, these roles are told in turn. With no tier the
+              Procurement Manager is told at twice the target.
+            </span>
+            @for (tier of escalationTiers; track $index) {
+              <div class="prj-field" data-testid="escalation-tier">
+                <label [for]="'gov-esc-days-' + $index" i18n="@@governance.escalationAfter"
+                  >Days past target</label
+                >
+                <input
+                  [id]="'gov-esc-days-' + $index"
+                  [name]="'escDays' + $index"
+                  type="number"
+                  min="0"
+                  max="365"
+                  [(ngModel)]="tier.afterDays"
+                  [disabled]="!settings.canManage || busy()"
+                />
+                <label [for]="'gov-esc-role-' + $index" i18n="@@governance.escalationRole"
+                  >Tell</label
+                >
+                <select
+                  [id]="'gov-esc-role-' + $index"
+                  [name]="'escRole' + $index"
+                  [(ngModel)]="tier.role"
+                  [disabled]="!settings.canManage || busy()"
+                >
+                  @for (role of settings.escalationRoleOptions ?? []; track role) {
+                    <option [value]="role">{{ roleLabel(role) }}</option>
+                  }
+                </select>
+                @if (settings.canManage) {
+                  <button
+                    type="button"
+                    class="prj-btn prj-btn--ghost"
+                    (click)="removeEscalationTier($index)"
+                    i18n="@@governance.escalationRemove"
+                  >
+                    Remove
+                  </button>
+                }
+              </div>
+            }
+            @if (settings.canManage) {
+              <button
+                type="button"
+                class="prj-btn prj-btn--ghost"
+                (click)="addEscalationTier(settings.escalationRoleOptions ?? [])"
+                i18n="@@governance.escalationAdd"
+              >
+                Add a tier
+              </button>
+            }
+          </fieldset>
+        </details>
         @if (weakened().length) {
           <div class="prj-note tnd-attention-box" role="alert" data-testid="governance-weakening">
             <p i18n="@@governance.weakeningIntro">
@@ -682,6 +804,14 @@ export class GovernanceSettings implements OnInit {
   evaluationTargetDays: number | null = null;
   approvalTargetDays: number | null = null;
   closeoutTargetDays: number | null = null;
+  // Feature B: the per-company daily digest of each member's overdue work.
+  companyTimeZoneId = '';
+  dailyDigestEnabled = false;
+  digestCadence: DigestCadence = 'Daily';
+  digestHourLocal: number | null = null;
+  digestSuppressEmpty = true;
+  // Feature E/F: the overdue-work escalation ladder (empty = the built-in Procurement-Manager default).
+  escalationTiers: EscalationTier[] = [];
   readonly roleLabel = tenantRoleLabel;
   readonly postOpeningRows = [
     {
@@ -784,6 +914,17 @@ export class GovernanceSettings implements OnInit {
         directAwardRatificationDays: this.directAwardRole
           ? Number(this.directAwardDays) || null
           : null,
+        // Feature B: the digest schedule ("" clears the timezone; enabling needs a timezone and an hour).
+        companyTimeZoneId: this.companyTimeZoneId,
+        dailyDigestEnabled: this.dailyDigestEnabled,
+        digestCadence: this.digestCadence,
+        digestHourLocal: this.digestHourLocal != null ? Number(this.digestHourLocal) : null,
+        digestSuppressEmpty: this.digestSuppressEmpty,
+        // Feature E/F: the escalation ladder (an empty list restores the default).
+        escalationTiers: this.escalationTiers.map((tier) => ({
+          afterDays: Number(tier.afterDays),
+          role: tier.role,
+        })),
         weakeningConfirmed: confirmed,
         weakeningReason: confirmed ? this.weakeningReason.trim() : null,
         privilegedDigestRecipientId: this.digestRecipient || EMPTY_ID,
@@ -849,6 +990,12 @@ export class GovernanceSettings implements OnInit {
     this.requireEstimate = settings.requireEstimateBeforePublication ?? false;
     this.directAwardRole = settings.directAwardApproverRole ?? '';
     this.directAwardDays = settings.directAwardRatificationDays ?? null;
+    this.companyTimeZoneId = settings.companyTimeZoneId ?? '';
+    this.dailyDigestEnabled = settings.dailyDigestEnabled ?? false;
+    this.digestCadence = settings.digestCadence ?? 'Daily';
+    this.digestHourLocal = settings.digestHourLocal ?? null;
+    this.digestSuppressEmpty = settings.digestSuppressEmpty ?? true;
+    this.escalationTiers = (settings.escalationTiers ?? []).map((tier) => ({ ...tier }));
     this.approverRoles = {
       withdrawal: settings.postOpeningWithdrawalApproverRole ?? '',
       exclusion: settings.postOpeningExclusionApproverRole ?? '',
@@ -861,5 +1008,18 @@ export class GovernanceSettings implements OnInit {
   private target(value: number | string | null): number {
     const days = Number(value);
     return value === null || value === '' || !Number.isFinite(days) ? 0 : days;
+  }
+
+  /** Feature E/F: append a tier (defaults to the next day and the first role option). */
+  addEscalationTier(options: readonly string[]): void {
+    const last = this.escalationTiers[this.escalationTiers.length - 1];
+    this.escalationTiers = [
+      ...this.escalationTiers,
+      { afterDays: last ? Number(last.afterDays) + 1 : 0, role: options[0] ?? '' },
+    ];
+  }
+
+  removeEscalationTier(index: number): void {
+    this.escalationTiers = this.escalationTiers.filter((_, position) => position !== index);
   }
 }

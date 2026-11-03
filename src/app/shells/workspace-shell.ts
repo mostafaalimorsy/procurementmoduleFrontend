@@ -50,6 +50,7 @@ type WorkspaceSection =
   | 'company'
   | 'search'
   | 'audit'
+  | 'security'
   | 'pilotMetrics'
   | 'signin'
   | null;
@@ -96,6 +97,7 @@ export class WorkspaceShell implements OnInit {
     if (path.startsWith('/recommendation-policies')) return 'recommendationPolicies';
     if (path.startsWith('/approval-matrix')) return 'approvalMatrix';
     if (path.startsWith('/search')) return 'search';
+    if (path.startsWith('/admin/security')) return 'security';
     if (path.startsWith('/admin/audit')) return 'audit';
     if (path.startsWith('/pilot-metrics')) return 'pilotMetrics';
     if (path.startsWith('/exceptions')) return 'exceptions';
