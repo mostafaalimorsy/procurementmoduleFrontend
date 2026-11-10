@@ -295,7 +295,7 @@ export class SecurityAudit implements OnInit {
       case 'Resolved':
         return $localize`:@@security.statusResolved:Resolved`;
       default:
-        return $localize`:@@security.statusOpen:Open`;
+        return $localize`:@@security.statusOpen:Alert open`;
     }
   }
 

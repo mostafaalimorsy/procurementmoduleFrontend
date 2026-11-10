@@ -5672,7 +5672,7 @@
     "security.downloadRule": "دفعة من تنزيل المستندات",
     "security.save": "حفظ الحدود",
     "security.saved": "حُفظت الحدود.",
-    "security.statusOpen": "مفتوح",
+    "security.statusOpen": "تنبيه مفتوح",
     "security.statusAcknowledged": "مُقرّ به",
     "security.statusResolved": "مُعالَج",
     "security.ruleLoginFailed": "محاولات تسجيل دخول فاشلة متكررة",

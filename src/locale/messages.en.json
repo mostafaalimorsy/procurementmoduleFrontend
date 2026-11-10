@@ -5775,7 +5775,7 @@
     "security.downloadRule": "Burst of document downloads",
     "security.save": "Save thresholds",
     "security.saved": "Thresholds saved.",
-    "security.statusOpen": "Open",
+    "security.statusOpen": "Alert open",
     "security.statusAcknowledged": "Acknowledged",
     "security.statusResolved": "Resolved",
     "security.ruleLoginFailed": "Repeated failed sign-ins",
